@@ -29,9 +29,10 @@ func parseLogLevel(level string) slog.Level {
 
 func runCLI() {
 	app := &cli.App{
-		Name:    "gpcli",
-		Usage:   "Google Photos unofficial CLI client",
-		Version: src.Version,
+		Name:                   "gpcli",
+		Usage:                  "Google Photos unofficial CLI client",
+		Version:                src.Version,
+		UseShortOptionHandling: true,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:    "config",
@@ -50,7 +51,7 @@ func runCLI() {
 			{
 				Name:      "upload",
 				Usage:     "Upload a file or directory to Google Photos",
-				ArgsUsage: "<filepath>",
+				ArgsUsage: "[flags] <filepath>",
 				Flags: []cli.Flag{
 					&cli.BoolFlag{
 						Name:    "recursive",

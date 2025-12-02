@@ -286,9 +286,10 @@ func uploadFileWithCallback(ctx context.Context, api *Api, filePath string, work
 				Message:  "Already in library",
 			})
 			if AppConfig.DeleteFromHost {
-				err = os.Remove(filePath)
-				if err != nil {
-					fmt.Println("Error deleting file:", err)
+				if err := os.Remove(filePath); err != nil {
+					fmt.Printf("Warning: failed to delete file %s: %v\n", filePath, err)
+				} else {
+					fmt.Printf("Deleted: %s\n", filePath)
 				}
 			}
 			return mediakey, nil
@@ -345,7 +346,11 @@ func uploadFileWithCallback(ctx context.Context, api *Api, filePath string, work
 	}
 
 	if AppConfig.DeleteFromHost {
-		os.Remove(filePath)
+		if err := os.Remove(filePath); err != nil {
+			fmt.Printf("Warning: failed to delete file %s: %v\n", filePath, err)
+		} else {
+			fmt.Printf("Deleted: %s\n", filePath)
+		}
 	}
 
 	return mediaKey, nil
