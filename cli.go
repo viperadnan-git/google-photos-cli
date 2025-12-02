@@ -1,170 +1,15 @@
 package main
 
 import (
-	"app/backend"
-	"encoding/json"
 	"fmt"
+	"gpcli/src"
 	"log/slog"
+	"os"
 	"strings"
+	"sync"
 
-	"github.com/charmbracelet/bubbles/progress"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"github.com/urfave/cli/v2"
 )
-
-// CLI flags and config
-type cliConfig struct {
-	recursive                     bool
-	threads                       int
-	forceUpload                   bool
-	deleteFromHost                bool
-	disableUnsupportedFilesFilter bool
-	logLevel                      string
-	configPath                    string
-}
-
-// Messages for bubbletea
-type uploadStartMsg struct {
-	total int
-}
-
-type fileProgressMsg struct {
-	workerID int
-	status   string
-	fileName string
-	message  string
-}
-
-type fileCompleteMsg struct {
-	success  bool
-	fileName string
-	mediaKey string
-	err      error
-}
-
-type uploadCompleteMsg struct{}
-
-// Bubbletea model
-type uploadModel struct {
-	progress     progress.Model
-	totalFiles   int
-	completed    int
-	failed       int
-	currentFiles map[int]string // workerID -> current file
-	workers      map[int]string // workerID -> status message
-	results      []uploadResult // Track all upload results
-	width        int
-	quitting     bool
-}
-
-type uploadResult struct {
-	Path     string `json:"path"`
-	Success  bool   `json:"success"`
-	MediaKey string `json:"mediaKey,omitempty"`
-	Error    string `json:"error,omitempty"`
-}
-
-type uploadSummary struct {
-	Total     int            `json:"total"`
-	Succeeded int            `json:"succeeded"`
-	Failed    int            `json:"failed"`
-	Results   []uploadResult `json:"results"`
-}
-
-func initialModel() uploadModel {
-	return uploadModel{
-		progress:     progress.New(progress.WithDefaultGradient()),
-		currentFiles: make(map[int]string),
-		workers:      make(map[int]string),
-		results:      []uploadResult{},
-		width:        80,
-	}
-}
-
-func (m uploadModel) Init() tea.Cmd {
-	return nil
-}
-
-func (m uploadModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.WindowSizeMsg:
-		m.width = msg.Width
-		m.progress.Width = msg.Width - 4
-		return m, nil
-
-	case uploadStartMsg:
-		m.totalFiles = msg.total
-		return m, nil
-
-	case fileProgressMsg:
-		m.workers[msg.workerID] = fmt.Sprintf("[%d] %s: %s", msg.workerID, msg.status, msg.fileName)
-		if msg.fileName != "" {
-			m.currentFiles[msg.workerID] = msg.fileName
-		}
-		return m, nil
-
-	case fileCompleteMsg:
-		result := uploadResult{
-			Path:     msg.fileName,
-			Success:  msg.success,
-			MediaKey: msg.mediaKey,
-		}
-		if msg.success {
-			m.completed++
-		} else {
-			m.failed++
-			if msg.err != nil {
-				result.Error = msg.err.Error()
-			}
-		}
-		m.results = append(m.results, result)
-		return m, nil
-
-	case uploadCompleteMsg:
-		m.quitting = true
-		return m, tea.Quit
-
-	case tea.KeyMsg:
-		if msg.String() == "ctrl+c" {
-			m.quitting = true
-			return m, tea.Quit
-		}
-	}
-
-	return m, nil
-}
-
-func (m uploadModel) View() string {
-	if m.quitting {
-		return ""
-	}
-
-	var b strings.Builder
-
-	titleStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("99"))
-	b.WriteString(titleStyle.Render("Uploading to Google Photos"))
-	b.WriteString("\n\n")
-
-	// Progress bar
-	if m.totalFiles > 0 {
-		percent := float64(m.completed+m.failed) / float64(m.totalFiles)
-		b.WriteString(m.progress.ViewAs(percent))
-		b.WriteString(fmt.Sprintf("\n%d/%d files", m.completed+m.failed, m.totalFiles))
-		b.WriteString(fmt.Sprintf(" (✓ %d success, ✗ %d failed)\n\n", m.completed, m.failed))
-	}
-
-	// Worker status
-	for i := 0; i < len(m.workers); i++ {
-		if status, ok := m.workers[i]; ok {
-			b.WriteString(status)
-			b.WriteString("\n")
-		}
-	}
-
-	b.WriteString("\n\nPress Ctrl+C to cancel\n")
-
-	return b.String()
-}
 
 // parseLogLevel converts a string log level to slog.Level
 func parseLogLevel(level string) slog.Level {
@@ -178,100 +23,345 @@ func parseLogLevel(level string) slog.Level {
 	case "error":
 		return slog.LevelError
 	default:
-		// Default to info for CLI
 		return slog.LevelInfo
 	}
 }
 
-// CLI upload implementation
-func runCLIUpload(filePaths []string, config cliConfig) error {
-	// Set custom config path if provided
-	if config.configPath != "" {
-		backend.ConfigPath = config.configPath
+func runCLI() {
+	app := &cli.App{
+		Name:    "gpcli",
+		Usage:   "Google Photos unofficial CLI client",
+		Version: src.Version,
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:    "config",
+				Aliases: []string{"c"},
+				Usage:   "Path to config file (default: ./gpcli.config)",
+			},
+		},
+		Before: func(c *cli.Context) error {
+			// Set config path from global flag before any command runs
+			if configPath := c.String("config"); configPath != "" {
+				src.ConfigPath = configPath
+			}
+			return nil
+		},
+		Commands: []*cli.Command{
+			{
+				Name:      "upload",
+				Usage:     "Upload a file or directory to Google Photos",
+				ArgsUsage: "<filepath>",
+				Flags: []cli.Flag{
+					&cli.BoolFlag{
+						Name:    "recursive",
+						Aliases: []string{"r"},
+						Usage:   "Include subdirectories",
+					},
+					&cli.IntFlag{
+						Name:    "threads",
+						Aliases: []string{"t"},
+						Value:   3,
+						Usage:   "Number of upload threads",
+					},
+					&cli.BoolFlag{
+						Name:    "force",
+						Aliases: []string{"f"},
+						Usage:   "Force upload even if file exists",
+					},
+					&cli.BoolFlag{
+						Name:    "delete",
+						Aliases: []string{"d"},
+						Usage:   "Delete from host after upload",
+					},
+					&cli.BoolFlag{
+						Name:    "disable-filter",
+						Aliases: []string{"df"},
+						Usage:   "Disable file type filtering",
+					},
+					&cli.StringFlag{
+						Name:    "log-level",
+						Aliases: []string{"l"},
+						Value:   "info",
+						Usage:   "Set log level: debug, info, warn, error",
+					},
+				},
+				Action: uploadAction,
+			},
+			{
+				Name:    "credentials",
+				Aliases: []string{"creds"},
+				Usage:   "Manage Google Photos credentials",
+				Subcommands: []*cli.Command{
+					{
+						Name:      "add",
+						Usage:     "Add a new credential",
+						ArgsUsage: "<auth-string>",
+						Action:    credentialsAddAction,
+					},
+					{
+						Name:      "remove",
+						Aliases:   []string{"rm"},
+						Usage:     "Remove a credential by email",
+						ArgsUsage: "<email>",
+						Action:    credentialsRemoveAction,
+					},
+					{
+						Name:    "list",
+						Aliases: []string{"ls"},
+						Usage:   "List all credentials",
+						Action:  credentialsListAction,
+					},
+					{
+						Name:      "set",
+						Aliases:   []string{"select"},
+						Usage:     "Set active credential (supports partial matching)",
+						ArgsUsage: "<email>",
+						Action:    credentialsSetAction,
+					},
+				},
+			},
+		},
+	}
+
+	if err := app.Run(os.Args); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+func uploadAction(c *cli.Context) error {
+	if c.NArg() < 1 {
+		return fmt.Errorf("filepath required")
+	}
+
+	filePath := c.Args().First()
+
+	// Validate that filepath exists
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		return fmt.Errorf("file or directory does not exist: %s", filePath)
 	}
 
 	// Load backend config
-	err := backend.LoadConfig()
+	err := src.LoadConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
 	// Override config with CLI flags
-	backend.AppConfig.Recursive = config.recursive
-	backend.AppConfig.UploadThreads = config.threads
-	backend.AppConfig.ForceUpload = config.forceUpload
-	backend.AppConfig.DeleteFromHost = config.deleteFromHost
-	backend.AppConfig.DisableUnsupportedFilesFilter = config.disableUnsupportedFilesFilter
+	threads := c.Int("threads")
+	src.AppConfig.Recursive = c.Bool("recursive")
+	src.AppConfig.UploadThreads = threads
+	src.AppConfig.ForceUpload = c.Bool("force")
+	src.AppConfig.DeleteFromHost = c.Bool("delete")
+	src.AppConfig.DisableUnsupportedFilesFilter = c.Bool("disable-filter")
 
 	// Parse log level
-	logLevel := parseLogLevel(config.logLevel)
+	logLevel := parseLogLevel(c.String("log-level"))
 
-	// Start bubbletea program
-	model := initialModel()
-	p := tea.NewProgram(model)
+	// Track results
+	var mu sync.Mutex
+	var totalFiles int
+	var completed int
+	var failed int
+	done := make(chan struct{})
 
-	// Create CLI app with event callback to bubbletea
+	// Create CLI app with event callback
 	eventCallback := func(event string, data any) {
+		mu.Lock()
+		defer mu.Unlock()
+
 		switch event {
 		case "uploadStart":
-			if start, ok := data.(backend.UploadBatchStart); ok {
-				p.Send(uploadStartMsg{total: start.Total})
+			if start, ok := data.(src.UploadBatchStart); ok {
+				totalFiles = start.Total
+				fmt.Printf("Uploading to Google Photos (%d threads)\n", threads)
+				fmt.Printf("Found %d files to upload\n\n", totalFiles)
 			}
 		case "ThreadStatus":
-			if status, ok := data.(backend.ThreadStatus); ok {
-				fileName := status.FileName
-				// No truncation - show full filename
-				p.Send(fileProgressMsg{
-					workerID: status.WorkerID,
-					status:   status.Status,
-					fileName: fileName,
-					message:  status.Message,
-				})
+			if status, ok := data.(src.ThreadStatus); ok {
+				fmt.Printf("[%d] %s: %s\n", status.WorkerID, status.Status, status.FileName)
 			}
 		case "FileStatus":
-			if result, ok := data.(backend.FileUploadResult); ok {
-				p.Send(fileCompleteMsg{
-					success:  !result.IsError,
-					fileName: result.Path,
-					mediaKey: result.MediaKey,
-					err:      result.Error,
-				})
+			if result, ok := data.(src.FileUploadResult); ok {
+				if result.IsError {
+					failed++
+					fmt.Printf("  FAILED: %s", result.Path)
+					if result.Error != nil {
+						fmt.Printf(" (%s)", result.Error.Error())
+					}
+					fmt.Println()
+				} else {
+					completed++
+					fmt.Printf("  SUCCESS: %s\n", result.Path)
+				}
 			}
 		case "uploadStop":
-			p.Send(uploadCompleteMsg{})
+			close(done)
 		}
 	}
 
-	cliApp := backend.NewCLIApp(eventCallback, logLevel)
-	uploadManager := backend.NewUploadManager(cliApp)
+	cliApp := src.NewCLIApp(eventCallback, logLevel)
+	uploadManager := src.NewUploadManager(cliApp)
 
 	// Run upload in background
 	go func() {
-		uploadManager.Upload(cliApp, filePaths)
+		uploadManager.Upload(cliApp, []string{filePath})
 	}()
 
-	// Run the TUI
-	finalModel, err := p.Run()
-	if err != nil {
-		return fmt.Errorf("error running TUI: %w", err)
-	}
+	// Wait for upload to complete
+	<-done
 
-	// Print JSON summary after TUI completes
-	if m, ok := finalModel.(uploadModel); ok {
-		summary := uploadSummary{
-			Total:     m.totalFiles,
-			Succeeded: m.completed,
-			Failed:    m.failed,
-			Results:   m.results,
-		}
-
-		jsonOutput, err := json.MarshalIndent(summary, "", "  ")
-		if err != nil {
-			return fmt.Errorf("error generating JSON: %w", err)
-		}
-
-		fmt.Println(string(jsonOutput))
-	}
+	// Print summary
+	fmt.Printf("\nUpload complete!\n")
+	fmt.Printf("  Total: %d\n", totalFiles)
+	fmt.Printf("  Succeeded: %d\n", completed)
+	fmt.Printf("  Failed: %d\n", failed)
 
 	return nil
+}
+
+func loadConfig() error {
+	return src.LoadConfig()
+}
+
+func credentialsAddAction(c *cli.Context) error {
+	if c.NArg() < 1 {
+		return fmt.Errorf("auth-string required")
+	}
+
+	if err := loadConfig(); err != nil {
+		return fmt.Errorf("error loading config: %w", err)
+	}
+
+	authString := c.Args().First()
+	configManager := &src.ConfigManager{}
+
+	if err := configManager.AddCredentials(authString); err != nil {
+		return fmt.Errorf("error adding credentials: %w", err)
+	}
+
+	fmt.Println("Credentials added successfully")
+	return nil
+}
+
+func credentialsRemoveAction(c *cli.Context) error {
+	if c.NArg() < 1 {
+		return fmt.Errorf("email required")
+	}
+
+	if err := loadConfig(); err != nil {
+		return fmt.Errorf("error loading config: %w", err)
+	}
+
+	email := c.Args().First()
+	configManager := &src.ConfigManager{}
+
+	if err := configManager.RemoveCredentials(email); err != nil {
+		return fmt.Errorf("error removing credentials: %w", err)
+	}
+
+	fmt.Printf("Credentials for %s removed successfully\n", email)
+	return nil
+}
+
+func credentialsListAction(c *cli.Context) error {
+	if err := loadConfig(); err != nil {
+		return fmt.Errorf("error loading config: %w", err)
+	}
+
+	configManager := &src.ConfigManager{}
+	config := configManager.GetConfig()
+
+	if len(config.Credentials) == 0 {
+		fmt.Println("No credentials found")
+		return nil
+	}
+
+	fmt.Println("Credentials:")
+	for i, cred := range config.Credentials {
+		params, err := src.ParseAuthString(cred)
+		if err != nil {
+			fmt.Printf("  %d. [Invalid credential]\n", i+1)
+			continue
+		}
+		email := params.Get("Email")
+		marker := " "
+		if email == config.Selected {
+			marker = "*"
+		}
+		fmt.Printf("  %s %s\n", marker, email)
+	}
+
+	if config.Selected != "" {
+		fmt.Printf("\n* = active\n")
+	}
+	fmt.Printf("\nUse 'gpcli creds set <email>' to change active account (supports partial matching)\n")
+
+	return nil
+}
+
+func credentialsSetAction(c *cli.Context) error {
+	if c.NArg() < 1 {
+		return fmt.Errorf("email required")
+	}
+
+	if err := loadConfig(); err != nil {
+		return fmt.Errorf("error loading config: %w", err)
+	}
+
+	query := c.Args().First()
+	configManager := &src.ConfigManager{}
+	config := configManager.GetConfig()
+
+	// Try to find exact match first
+	var matchedEmail string
+	for _, cred := range config.Credentials {
+		params, err := src.ParseAuthString(cred)
+		if err != nil {
+			continue
+		}
+		email := params.Get("Email")
+		if email == query {
+			matchedEmail = email
+			break
+		}
+	}
+
+	// If no exact match, try fuzzy matching (substring match)
+	if matchedEmail == "" {
+		var candidates []string
+		for _, cred := range config.Credentials {
+			params, err := src.ParseAuthString(cred)
+			if err != nil {
+				continue
+			}
+			email := params.Get("Email")
+			if containsSubstring(email, query) {
+				candidates = append(candidates, email)
+			}
+		}
+
+		if len(candidates) == 0 {
+			return fmt.Errorf("no credentials found matching '%s'", query)
+		} else if len(candidates) == 1 {
+			matchedEmail = candidates[0]
+		} else {
+			fmt.Fprintf(os.Stderr, "Error: multiple credentials match '%s':\n", query)
+			for _, email := range candidates {
+				fmt.Fprintf(os.Stderr, "  - %s\n", email)
+			}
+			return fmt.Errorf("please be more specific")
+		}
+	}
+
+	configManager.SetSelected(matchedEmail)
+	fmt.Printf("Active credential set to %s\n", matchedEmail)
+
+	return nil
+}
+
+func containsSubstring(str, substr string) bool {
+	strLower := strings.ToLower(str)
+	substrLower := strings.ToLower(substr)
+	return strings.Contains(strLower, substrLower)
 }
