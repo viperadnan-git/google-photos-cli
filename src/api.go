@@ -1,7 +1,7 @@
 package src
 
 import (
-	"gpcli/generated"
+	"gpcli/pb"
 	"bytes"
 	"compress/gzip"
 	"context"
@@ -217,7 +217,7 @@ func (a *Api) getAuthToken() (map[string]string, error) {
 // Obtain a file upload token from the Google Photos API.
 func (a *Api) GetUploadToken(shaHashB64 string, fileSize int64) (string, error) {
 	// Create the protobuf message
-	protoBody := generated.GetUploadToken{
+	protoBody := pb.GetUploadToken{
 		F1:            2,
 		F2:            2,
 		F3:            1,
@@ -290,12 +290,12 @@ func (a *Api) FindRemoteMediaByHash(shaHash []byte) (string, error) {
 	// Create the protobuf message
 
 	// Create and initialize the protobuf message with all required nested structures
-	protoBody := generated.HashCheck{
-		Field1: &generated.HashCheckField1Type{
-			Field1: &generated.HashCheckField1TypeField1Type{
+	protoBody := pb.HashCheck{
+		Field1: &pb.HashCheckField1Type{
+			Field1: &pb.HashCheckField1TypeField1Type{
 				Sha1Hash: shaHash,
 			},
-			Field2: &generated.HashCheckField1TypeField2Type{},
+			Field2: &pb.HashCheckField1TypeField2Type{},
 		},
 	}
 
@@ -361,7 +361,7 @@ func (a *Api) FindRemoteMediaByHash(shaHash []byte) (string, error) {
 		return "", fmt.Errorf("failed to read response body: %w", err)
 	}
 
-	var pbResp generated.RemoteMatches
+	var pbResp pb.RemoteMatches
 	if err := proto.Unmarshal(bodyBytes, &pbResp); err != nil {
 		log.Fatalf("Failed to unmarshal protobuf: %v", err)
 	}
@@ -371,7 +371,7 @@ func (a *Api) FindRemoteMediaByHash(shaHash []byte) (string, error) {
 	return mediaKey, nil
 }
 
-func (a *Api) UploadFile(ctx context.Context, filePath string, uploadToken string) (*generated.CommitToken, error) {
+func (a *Api) UploadFile(ctx context.Context, filePath string, uploadToken string) (*pb.CommitToken, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("error opening file: %w", err)
@@ -420,7 +420,7 @@ func (a *Api) UploadFile(ctx context.Context, filePath string, uploadToken strin
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 
-	var pbResp generated.CommitToken
+	var pbResp pb.CommitToken
 	if err := proto.Unmarshal(bodyBytes, &pbResp); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal protobuf: %w", err)
 	}
@@ -430,7 +430,7 @@ func (a *Api) UploadFile(ctx context.Context, filePath string, uploadToken strin
 
 // CommitUpload commits the upload to Google Photos
 func (a *Api) CommitUpload(
-	uploadResponseDecoded *generated.CommitToken,
+	uploadResponseDecoded *pb.CommitToken,
 	fileName string,
 	sha1Hash []byte,
 	uploadTimestamp int64,
@@ -452,22 +452,22 @@ func (a *Api) CommitUpload(
 	unknownInt := int64(46000000)
 
 	// Create the protobuf message
-	protoBody := generated.CommitUpload{
-		Field1: &generated.CommitUploadField1Type{
-			Field1: &generated.CommitUploadField1TypeField1Type{
+	protoBody := pb.CommitUpload{
+		Field1: &pb.CommitUploadField1Type{
+			Field1: &pb.CommitUploadField1TypeField1Type{
 				Field1: uploadResponseDecoded.Field1,
 				Field2: uploadResponseDecoded.Field2,
 			},
 			FileName: fileName,
 			Sha1Hash: sha1Hash,
-			Field4: &generated.CommitUploadField1TypeField4Type{
+			Field4: &pb.CommitUploadField1TypeField4Type{
 				FileLastModifiedTimestamp: uploadTimestamp,
 				Field2:                    unknownInt,
 			},
 			Quality: qualityVal,
 			Field10: 1,
 		},
-		Field2: &generated.CommitUploadField2Type{
+		Field2: &pb.CommitUploadField2Type{
 			Model:             a.model,
 			Make:              a.make,
 			AndroidApiVersion: a.androidAPIVersion,
@@ -542,7 +542,7 @@ func (a *Api) CommitUpload(
 		return "", fmt.Errorf("failed to read response body: %w", err)
 	}
 
-	var pbResp generated.CommitUploadResponse
+	var pbResp pb.CommitUploadResponse
 	if err := proto.Unmarshal(bodyBytes, &pbResp); err != nil {
 		return "", fmt.Errorf("failed to unmarshal protobuf: %w", err)
 	}

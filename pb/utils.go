@@ -1,4 +1,4 @@
-package generated
+package pb
 
 // GetPrimaryMediaKey safely accesses the first mediaKey
 func (x *RemoteMatches) GetMediaKey() string {

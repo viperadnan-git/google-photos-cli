@@ -22,7 +22,7 @@ This is a CLI tool for uploading photos/videos to Google Photos using an unoffic
   - `upload.go` - Upload orchestration with worker pool for concurrent uploads. Emits events for progress tracking.
   - `configmanager.go` - YAML config file management using koanf. Stores credentials and settings.
   - `app.go` - GooglePhotosCLI struct that handles event emission and logging.
-- **generated/** - Protobuf-generated Go code for API request/response structures.
+- **pb/** - Protobuf-generated Go code for API request/response structures.
 
 ### Event-Based Progress System
 
