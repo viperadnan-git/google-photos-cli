@@ -93,9 +93,9 @@ func runCLI() {
 				src.ConfigPath = configPath
 			}
 
-			// Set auth override from flag
+			// Set auth override from flag (strip whitespace)
 			if auth := c.String("auth"); auth != "" {
-				src.AuthOverride = auth
+				src.AuthOverride = strings.TrimSpace(auth)
 			}
 			return nil
 		},
@@ -146,23 +146,22 @@ func runCLI() {
 						Action:    credentialsAddAction,
 					},
 					{
-						Name:      "remove",
-						Aliases:   []string{"rm"},
-						Usage:     "Remove an authentication by email",
-						ArgsUsage: "<email>",
-						Action:    credentialsRemoveAction,
-					},
-					{
 						Name:    "list",
 						Aliases: []string{"ls"},
 						Usage:   "List all authentications",
-						Action:  credentialsListAction,
+						Action:  authInfoAction,
+					},
+					{
+						Name:      "remove",
+						Aliases:   []string{"rm"},
+						Usage:     "Remove an authentication by number or email",
+						ArgsUsage: "<number|email>",
+						Action:    credentialsRemoveAction,
 					},
 					{
 						Name:      "set",
-						Aliases:   []string{"select"},
-						Usage:     "Set active authentication (supports partial matching)",
-						ArgsUsage: "<email>",
+						Usage:     "Set active authentication by number or email",
+						ArgsUsage: "<number|email>",
 						Action:    credentialsSetAction,
 					},
 				},
@@ -313,12 +312,36 @@ func authInfoAction(c *cli.Context) error {
 	configManager := &src.ConfigManager{}
 	config := configManager.GetConfig()
 
-	if config.Selected == "" {
-		return fmt.Errorf("no active authentication. Use 'gpcli auth set <email>' or --auth flag")
+	// Show current authentication
+	if config.Selected != "" {
+		fmt.Printf("Current authentication: %s\n", config.Selected)
+	} else {
+		fmt.Println("No active authentication")
 	}
 
-	fmt.Println("Current authentication:")
-	fmt.Printf("  Email: %s\n", config.Selected)
+	// List all available accounts
+	if len(config.Credentials) == 0 {
+		fmt.Println("\nNo accounts configured. Use 'gpcli auth add <auth-string>' to add one.")
+		return nil
+	}
+
+	fmt.Println("\nAvailable accounts:")
+	for i, cred := range config.Credentials {
+		params, err := src.ParseAuthString(cred)
+		if err != nil {
+			fmt.Printf("  %d. [Invalid]\n", i+1)
+			continue
+		}
+		email := params.Get("Email")
+		marker := ""
+		if email == config.Selected {
+			marker = " *"
+		}
+		fmt.Printf("  %d. %s%s\n", i+1, email, marker)
+	}
+
+	fmt.Println("\nUse 'gpcli auth set <number|email>' to change active authentication")
+
 	return nil
 }
 
@@ -331,7 +354,7 @@ func credentialsAddAction(c *cli.Context) error {
 		return fmt.Errorf("error loading config: %w", err)
 	}
 
-	authString := c.Args().First()
+	authString := strings.TrimSpace(c.Args().First())
 	configManager := &src.ConfigManager{}
 
 	if err := configManager.AddCredentials(authString); err != nil {
@@ -344,15 +367,21 @@ func credentialsAddAction(c *cli.Context) error {
 
 func credentialsRemoveAction(c *cli.Context) error {
 	if c.NArg() < 1 {
-		return fmt.Errorf("email required")
+		return fmt.Errorf("number or email required")
 	}
 
 	if err := loadConfig(); err != nil {
 		return fmt.Errorf("error loading config: %w", err)
 	}
 
-	email := c.Args().First()
+	arg := c.Args().First()
 	configManager := &src.ConfigManager{}
+	config := configManager.GetConfig()
+
+	email, err := resolveEmailFromArg(arg, config.Credentials)
+	if err != nil {
+		return err
+	}
 
 	if err := configManager.RemoveCredentials(email); err != nil {
 		return fmt.Errorf("error removing authentication: %w", err)
@@ -362,95 +391,26 @@ func credentialsRemoveAction(c *cli.Context) error {
 	return nil
 }
 
-func credentialsListAction(c *cli.Context) error {
-	if err := loadConfig(); err != nil {
-		return fmt.Errorf("error loading config: %w", err)
-	}
-
-	configManager := &src.ConfigManager{}
-	config := configManager.GetConfig()
-
-	if len(config.Credentials) == 0 {
-		slog.Info("no authentication found")
-		return nil
-	}
-
-	fmt.Println("Accounts:")
-	for i, cred := range config.Credentials {
-		params, err := src.ParseAuthString(cred)
-		if err != nil {
-			fmt.Printf("  %d. [Invalid]\n", i+1)
-			continue
-		}
-		email := params.Get("Email")
-		marker := " "
-		if email == config.Selected {
-			marker = "*"
-		}
-		fmt.Printf("  %s %s\n", marker, email)
-	}
-
-	if config.Selected != "" {
-		fmt.Printf("\n* = active\n")
-	}
-	fmt.Printf("\nUse 'gpcli auth set <email>' to change active authentication\n")
-
-	return nil
-}
-
 func credentialsSetAction(c *cli.Context) error {
 	if c.NArg() < 1 {
-		return fmt.Errorf("email required")
+		return fmt.Errorf("number or email required")
 	}
 
 	if err := loadConfig(); err != nil {
 		return fmt.Errorf("error loading config: %w", err)
 	}
 
-	query := c.Args().First()
+	arg := c.Args().First()
 	configManager := &src.ConfigManager{}
 	config := configManager.GetConfig()
 
-	// Try to find exact match first
-	var matchedEmail string
-	for _, cred := range config.Credentials {
-		params, err := src.ParseAuthString(cred)
-		if err != nil {
-			continue
-		}
-		email := params.Get("Email")
-		if email == query {
-			matchedEmail = email
-			break
-		}
+	email, err := resolveEmailFromArg(arg, config.Credentials)
+	if err != nil {
+		return err
 	}
 
-	// If no exact match, try fuzzy matching (substring match)
-	if matchedEmail == "" {
-		var candidates []string
-		for _, cred := range config.Credentials {
-			params, err := src.ParseAuthString(cred)
-			if err != nil {
-				continue
-			}
-			email := params.Get("Email")
-			if containsSubstring(email, query) {
-				candidates = append(candidates, email)
-			}
-		}
-
-		if len(candidates) == 0 {
-			return fmt.Errorf("no authentication found matching '%s'", query)
-		} else if len(candidates) == 1 {
-			matchedEmail = candidates[0]
-		} else {
-			slog.Error("multiple accounts match query", "query", query, "candidates", candidates)
-			return fmt.Errorf("please be more specific")
-		}
-	}
-
-	configManager.SetSelected(matchedEmail)
-	slog.Info("active account set", "email", matchedEmail)
+	configManager.SetSelected(email)
+	slog.Info("active account set", "email", email)
 
 	return nil
 }
@@ -459,4 +419,53 @@ func containsSubstring(str, substr string) bool {
 	strLower := strings.ToLower(str)
 	substrLower := strings.ToLower(substr)
 	return strings.Contains(strLower, substrLower)
+}
+
+// resolveEmailFromArg resolves an email from either an index number (1-based) or email string
+func resolveEmailFromArg(arg string, credentials []string) (string, error) {
+	// Try to parse as number first
+	if num, err := fmt.Sscanf(arg, "%d", new(int)); err == nil && num == 1 {
+		var idx int
+		fmt.Sscanf(arg, "%d", &idx)
+		if idx < 1 || idx > len(credentials) {
+			return "", fmt.Errorf("invalid index %d: must be between 1 and %d", idx, len(credentials))
+		}
+		params, err := src.ParseAuthString(credentials[idx-1])
+		if err != nil {
+			return "", fmt.Errorf("invalid credential at index %d", idx)
+		}
+		return params.Get("Email"), nil
+	}
+
+	// Otherwise treat as email - try exact match first
+	for _, cred := range credentials {
+		params, err := src.ParseAuthString(cred)
+		if err != nil {
+			continue
+		}
+		email := params.Get("Email")
+		if email == arg {
+			return email, nil
+		}
+	}
+
+	// Try fuzzy matching
+	var candidates []string
+	for _, cred := range credentials {
+		params, err := src.ParseAuthString(cred)
+		if err != nil {
+			continue
+		}
+		email := params.Get("Email")
+		if containsSubstring(email, arg) {
+			candidates = append(candidates, email)
+		}
+	}
+
+	if len(candidates) == 0 {
+		return "", fmt.Errorf("no authentication found matching '%s'", arg)
+	} else if len(candidates) == 1 {
+		return candidates[0], nil
+	}
+	return "", fmt.Errorf("multiple accounts match '%s': %v - please be more specific", arg, candidates)
 }
