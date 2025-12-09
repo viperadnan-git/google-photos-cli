@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"gpcli/src"
+	"gpcli/src/api"
 	"io"
 	"log/slog"
 	"os"
@@ -187,6 +188,10 @@ func runCLI() {
 						Name:  "use-quota",
 						Usage: "Uploaded files will count against your Google Photos storage quota",
 					},
+					&cli.BoolFlag{
+						Name:  "archive",
+						Usage: "Archive uploaded files after upload",
+					},
 				},
 				Action: uploadAction,
 			},
@@ -268,8 +273,9 @@ func uploadAction(c *cli.Context) error {
 		src.AppConfig.Saver = false
 	}
 
-	// Get album name
+	// Get album name and archive flag
 	albumName := c.String("album")
+	shouldArchive := c.Bool("archive")
 
 	// Log configuration at start
 	logger.Info("starting upload",
@@ -282,6 +288,7 @@ func uploadAction(c *cli.Context) error {
 		"quality", quality,
 		"use-quota", src.AppConfig.UseQuota,
 		"album", albumName,
+		"archive", shouldArchive,
 	)
 
 	// Track results
@@ -291,6 +298,7 @@ func uploadAction(c *cli.Context) error {
 	var existing int
 	var failed int
 	var successfulMediaKeys []string
+	var successfulDedupKeys []string
 	done := make(chan struct{})
 
 	// Create CLI app with event callback
@@ -326,9 +334,12 @@ func uploadAction(c *cli.Context) error {
 						"path", result.Path,
 						"media_key", result.MediaKey,
 					)
-					// Collect media key for album (existing files can be added too)
+					// Collect media key for album and dedup key for archive
 					if result.MediaKey != "" {
 						successfulMediaKeys = append(successfulMediaKeys, result.MediaKey)
+					}
+					if result.DedupKey != "" {
+						successfulDedupKeys = append(successfulDedupKeys, result.DedupKey)
 					}
 				} else {
 					uploaded++
@@ -336,9 +347,12 @@ func uploadAction(c *cli.Context) error {
 						"path", result.Path,
 						"media_key", result.MediaKey,
 					)
-					// Collect media key for album
+					// Collect media key for album and dedup key for archive
 					if result.MediaKey != "" {
 						successfulMediaKeys = append(successfulMediaKeys, result.MediaKey)
+					}
+					if result.DedupKey != "" {
+						successfulDedupKeys = append(successfulDedupKeys, result.DedupKey)
 					}
 				}
 			}
@@ -371,7 +385,14 @@ func uploadAction(c *cli.Context) error {
 	if albumName != "" && len(successfulMediaKeys) > 0 {
 		logger.Info("creating album", "name", albumName, "items", len(successfulMediaKeys))
 
-		api, err := src.NewApi()
+		apiClient, err := api.NewApi(api.ApiConfig{
+			AuthOverride: src.AuthOverride,
+			Selected:     src.AppConfig.Selected,
+			Credentials:  src.AppConfig.Credentials,
+			Proxy:        src.AppConfig.Proxy,
+			Saver:        src.AppConfig.Saver,
+			UseQuota:     src.AppConfig.UseQuota,
+		})
 		if err != nil {
 			logger.Error("failed to create API client for album creation", "error", err)
 			return fmt.Errorf("failed to create API client: %w", err)
@@ -383,14 +404,14 @@ func uploadAction(c *cli.Context) error {
 
 		if len(successfulMediaKeys) <= batchSize {
 			// Create album with all media keys
-			albumMediaKey, err = api.CreateAlbum(albumName, successfulMediaKeys)
+			albumMediaKey, err = apiClient.CreateAlbum(albumName, successfulMediaKeys)
 			if err != nil {
 				logger.Error("failed to create album", "error", err)
 				return fmt.Errorf("failed to create album: %w", err)
 			}
 		} else {
 			// Create album with first batch
-			albumMediaKey, err = api.CreateAlbum(albumName, successfulMediaKeys[:batchSize])
+			albumMediaKey, err = apiClient.CreateAlbum(albumName, successfulMediaKeys[:batchSize])
 			if err != nil {
 				logger.Error("failed to create album", "error", err)
 				return fmt.Errorf("failed to create album: %w", err)
@@ -402,7 +423,7 @@ func uploadAction(c *cli.Context) error {
 				if end > len(successfulMediaKeys) {
 					end = len(successfulMediaKeys)
 				}
-				err = api.AddMediaToAlbum(albumMediaKey, successfulMediaKeys[i:end])
+				err = apiClient.AddMediaToAlbum(albumMediaKey, successfulMediaKeys[i:end])
 				if err != nil {
 					logger.Error("failed to add items to album", "batch_start", i, "error", err)
 				}
@@ -410,6 +431,39 @@ func uploadAction(c *cli.Context) error {
 		}
 
 		logger.Info("album created", "name", albumName, "album_key", albumMediaKey, "items", len(successfulMediaKeys))
+	}
+
+	// Handle archiving if archive flag was specified
+	if shouldArchive && len(successfulDedupKeys) > 0 {
+		logger.Info("archiving uploaded files", "items", len(successfulDedupKeys))
+
+		apiClient, err := api.NewApi(api.ApiConfig{
+			AuthOverride: src.AuthOverride,
+			Selected:     src.AppConfig.Selected,
+			Credentials:  src.AppConfig.Credentials,
+			Proxy:        src.AppConfig.Proxy,
+			Saver:        src.AppConfig.Saver,
+			UseQuota:     src.AppConfig.UseQuota,
+		})
+		if err != nil {
+			logger.Error("failed to create API client for archiving", "error", err)
+			return fmt.Errorf("failed to create API client: %w", err)
+		}
+
+		// Archive in batches (use same batch size as album)
+		const batchSize = 500
+		for i := 0; i < len(successfulDedupKeys); i += batchSize {
+			end := i + batchSize
+			if end > len(successfulDedupKeys) {
+				end = len(successfulDedupKeys)
+			}
+			err = apiClient.SetArchived(successfulDedupKeys[i:end], true)
+			if err != nil {
+				logger.Error("failed to archive items", "batch_start", i, "error", err)
+			}
+		}
+
+		logger.Info("files archived", "items", len(successfulDedupKeys))
 	}
 
 	return nil

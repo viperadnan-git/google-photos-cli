@@ -10,6 +10,8 @@ import (
 	"slices"
 	"strings"
 	"sync"
+
+	"gpcli/src/api"
 )
 
 // ProgressCallback is a function type for upload progress updates
@@ -45,6 +47,7 @@ type UploadBatchStart struct {
 
 type FileUploadResult struct {
 	MediaKey   string
+	DedupKey   string // URL-safe base64 encoded SHA1 hash for archive operations
 	IsError    bool
 	IsExisting bool
 	Error      error
@@ -54,6 +57,7 @@ type FileUploadResult struct {
 // UploadResult is the return type for uploadFileWithCallback
 type UploadResult struct {
 	MediaKey   string
+	DedupKey   string // URL-safe base64 encoded SHA1 hash for archive operations
 	IsExisting bool
 	Error      error
 }
@@ -247,7 +251,7 @@ func filterGooglePhotosFiles(paths []string) ([]string, error) {
 	return supportedFiles, nil
 }
 
-func uploadFileWithCallback(ctx context.Context, api *Api, filePath string, workerID int, callback ProgressCallback) UploadResult {
+func uploadFileWithCallback(ctx context.Context, apiClient *api.Api, filePath string, workerID int, callback ProgressCallback) UploadResult {
 	fileName := filepath.Base(filePath)
 	mediakey := ""
 
@@ -260,12 +264,13 @@ func uploadFileWithCallback(ctx context.Context, api *Api, filePath string, work
 		Message:  "Hashing...",
 	})
 
-	sha1_hash_bytes, err := CalculateSHA1(ctx, filePath)
+	sha1HashBytes, err := CalculateSHA1(ctx, filePath)
 	if err != nil {
 		return UploadResult{Error: fmt.Errorf("error calculating hash file: %w", err)}
 	}
 
-	sha1_hash_b64 := base64.StdEncoding.EncodeToString([]byte(sha1_hash_bytes))
+	sha1HashBase64 := base64.StdEncoding.EncodeToString([]byte(sha1HashBytes))
+	dedupKey := api.SHA1ToDedupeKey(sha1HashBytes)
 
 	// Stage 2: Checking if exists in library
 	if !AppConfig.ForceUpload {
@@ -277,7 +282,7 @@ func uploadFileWithCallback(ctx context.Context, api *Api, filePath string, work
 			Message:  "Checking if file exists in library...",
 		})
 
-		mediakey, err = api.FindRemoteMediaByHash(sha1_hash_bytes)
+		mediakey, err = apiClient.FindRemoteMediaByHash(sha1HashBytes)
 		if err != nil {
 			slog.Error("error checking for remote matches", "error", err)
 		}
@@ -296,7 +301,7 @@ func uploadFileWithCallback(ctx context.Context, api *Api, filePath string, work
 					slog.Debug("deleted file", "path", filePath)
 				}
 			}
-			return UploadResult{MediaKey: mediakey, IsExisting: true}
+			return UploadResult{MediaKey: mediakey, DedupKey: dedupKey, IsExisting: true}
 		}
 	}
 
@@ -320,12 +325,12 @@ func uploadFileWithCallback(ctx context.Context, api *Api, filePath string, work
 		Message:  "Uploading...",
 	})
 
-	token, err := api.GetUploadToken(sha1_hash_b64, fileInfo.Size())
+	token, err := apiClient.GetUploadToken(sha1HashBase64, fileInfo.Size())
 	if err != nil {
 		return UploadResult{Error: fmt.Errorf("error uploading file: %w", err)}
 	}
 
-	CommitToken, err := api.UploadFile(ctx, filePath, token)
+	commitToken, err := apiClient.UploadFile(ctx, filePath, token)
 	if err != nil {
 		return UploadResult{Error: fmt.Errorf("error uploading file: %w", err)}
 	}
@@ -339,7 +344,7 @@ func uploadFileWithCallback(ctx context.Context, api *Api, filePath string, work
 		Message:  "Committing upload...",
 	})
 
-	mediaKey, err := api.CommitUpload(CommitToken, fileInfo.Name(), sha1_hash_bytes, fileInfo.ModTime().Unix())
+	mediaKey, err := apiClient.CommitUpload(commitToken, fileInfo.Name(), sha1HashBytes, fileInfo.ModTime().Unix())
 	if err != nil {
 		return UploadResult{Error: fmt.Errorf("error commiting file: %w", err)}
 	}
@@ -356,7 +361,7 @@ func uploadFileWithCallback(ctx context.Context, api *Api, filePath string, work
 		}
 	}
 
-	return UploadResult{MediaKey: mediaKey}
+	return UploadResult{MediaKey: mediaKey, DedupKey: dedupKey}
 }
 
 func startUploadWorker(workerID int, workChan <-chan string, results chan<- FileUploadResult, cancel <-chan struct{}, wg *sync.WaitGroup, app *GooglePhotosCLI) {
@@ -385,7 +390,14 @@ func startUploadWorker(workerID int, workChan <-chan string, results chan<- File
 				cancelUpload()
 			}()
 
-			api, err := NewApi()
+			apiClient, err := api.NewApi(api.ApiConfig{
+				AuthOverride: AuthOverride,
+				Selected:     AppConfig.Selected,
+				Credentials:  AppConfig.Credentials,
+				Proxy:        AppConfig.Proxy,
+				Saver:        AppConfig.Saver,
+				UseQuota:     AppConfig.UseQuota,
+			})
 			if err != nil {
 				results <- FileUploadResult{IsError: true, Error: err, Path: path}
 				app.EmitEvent("ThreadStatus", ThreadStatus{
@@ -402,7 +414,7 @@ func startUploadWorker(workerID int, workChan <-chan string, results chan<- File
 			callback := func(event string, data any) {
 				app.EmitEvent(event, data)
 			}
-			result := uploadFileWithCallback(ctx, api, path, workerID, callback)
+			result := uploadFileWithCallback(ctx, apiClient, path, workerID, callback)
 			if result.Error != nil {
 				results <- FileUploadResult{IsError: true, Error: result.Error, Path: path}
 				app.EmitEvent("ThreadStatus", ThreadStatus{
@@ -413,7 +425,7 @@ func startUploadWorker(workerID int, workChan <-chan string, results chan<- File
 					Message:  fmt.Sprintf("Error: %v", result.Error),
 				})
 			} else {
-				results <- FileUploadResult{IsError: false, IsExisting: result.IsExisting, Path: path, MediaKey: result.MediaKey}
+				results <- FileUploadResult{IsError: false, IsExisting: result.IsExisting, Path: path, MediaKey: result.MediaKey, DedupKey: result.DedupKey}
 				app.EmitEvent("ThreadStatus", ThreadStatus{
 					WorkerID: workerID,
 					Status:   "completed",
