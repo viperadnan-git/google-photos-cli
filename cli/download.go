@@ -20,7 +20,6 @@ func downloadAction(ctx context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("item key or file path required")
 	}
 
-	getOriginal := cmd.Bool("original")
 	urlOnly := cmd.Bool("url")
 	outputPath := cmd.String("output")
 
@@ -46,32 +45,13 @@ func downloadAction(ctx context.Context, cmd *cli.Command) error {
 		logger.Info("fetching download URL", "media_key", mediaKey)
 	}
 
-	editedURL, originalURL, err := apiClient.GetDownloadUrls(mediaKey)
+	downloadURL, isEdited, err := apiClient.GetDownloadUrl(mediaKey)
 	if err != nil {
-		return fmt.Errorf("failed to get download URLs: %w", err)
+		return fmt.Errorf("failed to get download URL: %w", err)
 	}
 
-	// Select the URL to use
-	var downloadURL string
-	var urlType string
-	if getOriginal {
-		if originalURL != "" {
-			downloadURL = originalURL
-			urlType = "original"
-		} else {
-			return fmt.Errorf("original URL not available")
-		}
-	} else {
-		// Prefer edited URL, fallback to original
-		if editedURL != "" {
-			downloadURL = editedURL
-			urlType = "edited"
-		} else if originalURL != "" {
-			downloadURL = originalURL
-			urlType = "original"
-		} else {
-			return fmt.Errorf("no download URL available")
-		}
+	if downloadURL == "" {
+		return fmt.Errorf("no download URL available")
 	}
 
 	// If --url flag is set, just print the URL and exit
@@ -81,7 +61,7 @@ func downloadAction(ctx context.Context, cmd *cli.Command) error {
 	}
 
 	// Download the file
-	logger.Info("downloading", "url_type", urlType)
+	logger.Info("downloading", "is_edited", isEdited)
 	savedPath, err := gogpm.DownloadFile(downloadURL, outputPath)
 	if err != nil {
 		return err

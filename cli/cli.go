@@ -139,10 +139,6 @@ func Run() {
 				ArgsUsage: "<media_key|dedup_key|file_path>",
 				Flags: []cli.Flag{
 					&cli.BoolFlag{
-						Name:  "original",
-						Usage: "Download original file (default: edited if available)",
-					},
-					&cli.BoolFlag{
 						Name:  "url",
 						Usage: "Only print download URL without downloading",
 					},
