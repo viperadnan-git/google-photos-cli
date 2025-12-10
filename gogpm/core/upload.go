@@ -1,4 +1,4 @@
-package api
+package core
 
 import (
 	"bytes"
@@ -213,24 +213,36 @@ func (a *Api) UploadFile(ctx context.Context, filePath string, uploadToken strin
 }
 
 // CommitUpload commits the upload to Google Photos and returns the media key
+// qualityStr: "original" or "storage-saver" (empty string uses Api default)
+// useQuota: override Api default if true
 func (a *Api) CommitUpload(
 	commitToken *pb.CommitToken,
 	fileName string,
 	sha1Hash []byte,
 	uploadTimestamp int64,
+	qualityStr string,
+	useQuota bool,
 ) (string, error) {
 	if uploadTimestamp == 0 {
 		uploadTimestamp = time.Now().Unix()
 	}
 
-	var quality int64 = 3 // original
-	if a.quality == "storage-saver" {
-		quality = 1
-		a.Model = "Pixel 2"
+	// Use defaults from Api if not overridden
+	effectiveQuality := qualityStr
+	if effectiveQuality == "" {
+		effectiveQuality = a.Quality
 	}
+	effectiveUseQuota := useQuota || a.UseQuota
 
-	if a.useQuota {
-		a.Model = "Pixel 8"
+	// Determine model based on quality and quota settings
+	model := a.Model
+	var quality int64 = 3 // original
+	if effectiveQuality == "storage-saver" {
+		quality = 1
+		model = "Pixel 2"
+	}
+	if effectiveUseQuota {
+		model = "Pixel 8"
 	}
 
 	unknownConstant := int64(46000000)
@@ -251,7 +263,7 @@ func (a *Api) CommitUpload(
 			Field10: 1,
 		},
 		Field2: &pb.CommitUploadField2Type{
-			Model:             a.Model,
+			Model:             model,
 			Make:              a.Make,
 			AndroidApiVersion: a.AndroidAPIVersion,
 		},

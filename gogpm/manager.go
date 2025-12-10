@@ -1,4 +1,4 @@
-package src
+package gogpm
 
 import (
 	"context"
@@ -11,36 +11,27 @@ import (
 	"strings"
 	"sync"
 
-	"gpcli/src/api"
+	"gpcli/gogpm/core"
 )
 
 // ProgressCallback is a function type for upload progress updates
 type ProgressCallback func(event string, data any)
 
-type UploadManager struct {
-	wg      sync.WaitGroup
-	cancel  chan struct{}
-	running bool
-	app     *GooglePhotosCLI
+// UploadOptions contains runtime options for upload operations
+type UploadOptions struct {
+	Threads         int
+	Recursive       bool
+	ForceUpload     bool
+	DeleteFromHost  bool
+	DisableFilter   bool
+	Caption         string
+	ShouldFavourite bool
+	ShouldArchive   bool
+	Quality         string // "original" or "storage-saver"
+	UseQuota        bool
 }
 
-func NewUploadManager(app *GooglePhotosCLI) *UploadManager {
-	return &UploadManager{
-		app: app,
-	}
-}
-
-func (m *UploadManager) IsRunning() bool {
-	return m.running
-}
-
-func (m *UploadManager) Cancel() {
-	if m.cancel != nil {
-		close(m.cancel)
-		m.cancel = nil
-	}
-}
-
+// Event types
 type UploadBatchStart struct {
 	Total int
 }
@@ -70,50 +61,57 @@ type ThreadStatus struct {
 	Message  string
 }
 
-func (m *UploadManager) Upload(app *GooglePhotosCLI, paths []string) {
-	if m.running {
+// Upload uploads files to Google Photos with progress callbacks
+func (g *GooglePhotosAPI) Upload(paths []string, opts UploadOptions, callback ProgressCallback) {
+	if g.running {
 		return
 	}
 
-	m.running = true
-	m.cancel = make(chan struct{})
+	g.running = true
+	g.cancel = make(chan struct{})
 
-	targetPaths, err := filterGooglePhotosFiles(paths)
+	// Ensure callback is not nil
+	if callback == nil {
+		callback = func(event string, data any) {}
+	}
+
+	targetPaths, err := filterGooglePhotosFiles(paths, opts.Recursive, opts.DisableFilter)
 	if err != nil {
-		app.EmitEvent("FileStatus", FileUploadResult{
+		callback("FileStatus", FileUploadResult{
 			IsError: true,
 			Error:   err,
 		})
-		app.EmitEvent("uploadStop", nil)
-		m.running = false
+		callback("uploadStop", nil)
+		g.running = false
 		return
 	}
 
 	if len(targetPaths) == 0 {
-		app.EmitEvent("uploadStop", nil)
-		m.running = false
+		callback("uploadStop", nil)
+		g.running = false
 		return
 	}
 
-	app.EmitEvent("uploadStart", UploadBatchStart{
+	callback("uploadStart", UploadBatchStart{
 		Total: len(targetPaths),
 	})
 
-	if AppConfig.UploadThreads < 1 {
-		AppConfig.UploadThreads = 1
+	threads := opts.Threads
+	if threads < 1 {
+		threads = 1
 	}
 
 	// Don't start more threads than files to process
-	numWorkers := min(AppConfig.UploadThreads, len(targetPaths))
+	numWorkers := min(threads, len(targetPaths))
 
 	// Create a worker pool for concurrent uploads
 	workChan := make(chan string, len(targetPaths))
 	results := make(chan FileUploadResult, len(targetPaths))
 
-	// Start workers
+	// Start workers using shared Api
 	for i := range numWorkers {
-		m.wg.Add(1)
-		go startUploadWorker(i, workChan, results, m.cancel, &m.wg, app)
+		g.wg.Add(1)
+		go startUploadWorker(i, workChan, results, g.cancel, &g.wg, g.Api, opts, callback)
 	}
 
 	// Send work to workers
@@ -121,7 +119,7 @@ func (m *UploadManager) Upload(app *GooglePhotosCLI, paths []string) {
 	LOOP:
 		for _, path := range targetPaths {
 			select {
-			case <-m.cancel:
+			case <-g.cancel:
 				break LOOP
 			case workChan <- path:
 			}
@@ -131,25 +129,23 @@ func (m *UploadManager) Upload(app *GooglePhotosCLI, paths []string) {
 
 	// Wait for workers to finish and close results channel
 	go func() {
-		m.wg.Wait()
+		g.wg.Wait()
 		close(results)
 	}()
 
 	// Process results, then emit uploadStop when done
 	go func() {
 		for result := range results {
-			app.EmitEvent("FileStatus", result)
+			callback("FileStatus", result)
 			if result.IsError {
-				s := fmt.Sprintf("upload error: %v", result.Error)
-				app.GetLogger().Error(s)
+				slog.Error("upload error", "error", result.Error)
 			} else {
-				s := fmt.Sprintf("upload success: %v", result.Path)
-				app.GetLogger().Info(s)
+				slog.Info("upload success", "path", result.Path)
 			}
 		}
 		// Only emit uploadStop after all results have been processed
-		app.EmitEvent("uploadStop", nil)
-		m.running = false
+		callback("uploadStop", nil)
+		g.running = false
 	}()
 }
 
@@ -211,7 +207,7 @@ func scanDirectoryForFiles(path string, recursive bool) ([]string, error) {
 }
 
 // filterGooglePhotosFiles returns a list of files that are supported by Google Photos
-func filterGooglePhotosFiles(paths []string) ([]string, error) {
+func filterGooglePhotosFiles(paths []string, recursive, disableFilter bool) ([]string, error) {
 	var supportedFiles []string
 
 	for _, path := range paths {
@@ -221,13 +217,13 @@ func filterGooglePhotosFiles(paths []string) ([]string, error) {
 		}
 
 		if fileInfo.IsDir() {
-			files, err := scanDirectoryForFiles(path, AppConfig.Recursive)
+			files, err := scanDirectoryForFiles(path, recursive)
 			if err != nil {
 				return nil, fmt.Errorf("error scanning directory %s: %v", path, err)
 			}
 
 			for _, file := range files {
-				if AppConfig.DisableUnsupportedFilesFilter {
+				if disableFilter {
 					supportedFiles = append(supportedFiles, file)
 				} else {
 					if isSupportedByGooglePhotos(file) {
@@ -237,7 +233,7 @@ func filterGooglePhotosFiles(paths []string) ([]string, error) {
 
 			}
 		} else {
-			if AppConfig.DisableUnsupportedFilesFilter {
+			if disableFilter {
 				supportedFiles = append(supportedFiles, path)
 			} else {
 				if isSupportedByGooglePhotos(path) {
@@ -251,7 +247,7 @@ func filterGooglePhotosFiles(paths []string) ([]string, error) {
 	return supportedFiles, nil
 }
 
-func uploadFileWithCallback(ctx context.Context, apiClient *api.Api, filePath string, workerID int, callback ProgressCallback) UploadResult {
+func uploadFileWithCallback(ctx context.Context, apiClient *core.Api, filePath string, workerID int, opts UploadOptions, callback ProgressCallback) UploadResult {
 	fileName := filepath.Base(filePath)
 	mediakey := ""
 
@@ -270,10 +266,10 @@ func uploadFileWithCallback(ctx context.Context, apiClient *api.Api, filePath st
 	}
 
 	sha1HashBase64 := base64.StdEncoding.EncodeToString([]byte(sha1HashBytes))
-	dedupKey := api.SHA1ToDedupeKey(sha1HashBytes)
+	dedupKey := core.SHA1ToDedupeKey(sha1HashBytes)
 
 	// Stage 2: Checking if exists in library
-	if !AppConfig.ForceUpload {
+	if !opts.ForceUpload {
 		callback("ThreadStatus", ThreadStatus{
 			WorkerID: workerID,
 			Status:   "checking",
@@ -294,7 +290,7 @@ func uploadFileWithCallback(ctx context.Context, apiClient *api.Api, filePath st
 				FileName: fileName,
 				Message:  "Already in library",
 			})
-			if AppConfig.DeleteFromHost {
+			if opts.DeleteFromHost {
 				if err := os.Remove(filePath); err != nil {
 					slog.Warn("failed to delete file", "path", filePath, "error", err)
 				} else {
@@ -344,7 +340,7 @@ func uploadFileWithCallback(ctx context.Context, apiClient *api.Api, filePath st
 		Message:  "Committing upload...",
 	})
 
-	mediaKey, err := apiClient.CommitUpload(commitToken, fileInfo.Name(), sha1HashBytes, fileInfo.ModTime().Unix())
+	mediaKey, err := apiClient.CommitUpload(commitToken, fileInfo.Name(), sha1HashBytes, fileInfo.ModTime().Unix(), opts.Quality, opts.UseQuota)
 	if err != nil {
 		return UploadResult{Error: fmt.Errorf("error commiting file: %w", err)}
 	}
@@ -353,7 +349,7 @@ func uploadFileWithCallback(ctx context.Context, apiClient *api.Api, filePath st
 		return UploadResult{Error: fmt.Errorf("media key not received")}
 	}
 
-	if AppConfig.DeleteFromHost {
+	if opts.DeleteFromHost {
 		if err := os.Remove(filePath); err != nil {
 			slog.Warn("failed to delete file", "path", filePath, "error", err)
 		} else {
@@ -364,11 +360,11 @@ func uploadFileWithCallback(ctx context.Context, apiClient *api.Api, filePath st
 	return UploadResult{MediaKey: mediaKey, DedupKey: dedupKey}
 }
 
-func startUploadWorker(workerID int, workChan <-chan string, results chan<- FileUploadResult, cancel <-chan struct{}, wg *sync.WaitGroup, app *GooglePhotosCLI) {
+func startUploadWorker(workerID int, workChan <-chan string, results chan<- FileUploadResult, cancel <-chan struct{}, wg *sync.WaitGroup, apiClient *core.Api, opts UploadOptions, callback ProgressCallback) {
 	defer wg.Done()
 
 	// Emit idle status initially
-	app.EmitEvent("ThreadStatus", ThreadStatus{
+	callback("ThreadStatus", ThreadStatus{
 		WorkerID: workerID,
 		Status:   "idle",
 		Message:  "Waiting for files...",
@@ -377,7 +373,7 @@ func startUploadWorker(workerID int, workChan <-chan string, results chan<- File
 	for path := range workChan {
 		select {
 		case <-cancel:
-			app.EmitEvent("ThreadStatus", ThreadStatus{
+			callback("ThreadStatus", ThreadStatus{
 				WorkerID: workerID,
 				Status:   "idle",
 				Message:  "Cancelled",
@@ -390,34 +386,10 @@ func startUploadWorker(workerID int, workChan <-chan string, results chan<- File
 				cancelUpload()
 			}()
 
-			apiClient, err := api.NewApi(api.ApiConfig{
-				AuthOverride: AuthOverride,
-				Selected:     AppConfig.Selected,
-				Credentials:  AppConfig.Credentials,
-				Proxy:        AppConfig.Proxy,
-				Quality:      AppConfig.Quality,
-				UseQuota:     AppConfig.UseQuota,
-			})
-			if err != nil {
-				results <- FileUploadResult{IsError: true, Error: err, Path: path}
-				app.EmitEvent("ThreadStatus", ThreadStatus{
-					WorkerID: workerID,
-					Status:   "error",
-					FilePath: path,
-					FileName: filepath.Base(path),
-					Message:  fmt.Sprintf("API error: %v", err),
-				})
-				continue
-			}
-
-			// Create callback from app interface
-			callback := func(event string, data any) {
-				app.EmitEvent(event, data)
-			}
-			result := uploadFileWithCallback(ctx, apiClient, path, workerID, callback)
+			result := uploadFileWithCallback(ctx, apiClient, path, workerID, opts, callback)
 			if result.Error != nil {
 				results <- FileUploadResult{IsError: true, Error: result.Error, Path: path}
-				app.EmitEvent("ThreadStatus", ThreadStatus{
+				callback("ThreadStatus", ThreadStatus{
 					WorkerID: workerID,
 					Status:   "error",
 					FilePath: path,
@@ -426,10 +398,10 @@ func startUploadWorker(workerID int, workChan <-chan string, results chan<- File
 				})
 			} else {
 				// Execute post-upload operations immediately after each successful upload
-				postUploadOps(apiClient, result.DedupKey, path, workerID, callback)
+				postUploadOps(apiClient, result.DedupKey, path, workerID, opts, callback)
 
 				results <- FileUploadResult{IsError: false, IsExisting: result.IsExisting, Path: path, MediaKey: result.MediaKey, DedupKey: result.DedupKey}
-				app.EmitEvent("ThreadStatus", ThreadStatus{
+				callback("ThreadStatus", ThreadStatus{
 					WorkerID: workerID,
 					Status:   "completed",
 					FilePath: path,
@@ -440,7 +412,7 @@ func startUploadWorker(workerID int, workChan <-chan string, results chan<- File
 			cancelUpload()
 
 			// Mark as idle after completing file
-			app.EmitEvent("ThreadStatus", ThreadStatus{
+			callback("ThreadStatus", ThreadStatus{
 				WorkerID: workerID,
 				Status:   "idle",
 				Message:  "Waiting for next file...",
@@ -449,7 +421,7 @@ func startUploadWorker(workerID int, workChan <-chan string, results chan<- File
 	}
 
 	// Final idle status when no more work
-	app.EmitEvent("ThreadStatus", ThreadStatus{
+	callback("ThreadStatus", ThreadStatus{
 		WorkerID: workerID,
 		Status:   "idle",
 		Message:  "Finished",
@@ -457,11 +429,11 @@ func startUploadWorker(workerID int, workChan <-chan string, results chan<- File
 }
 
 // postUploadOps executes caption, favourite, and archive operations immediately after upload
-func postUploadOps(apiClient *api.Api, dedupKey, filePath string, workerID int, callback ProgressCallback) {
+func postUploadOps(apiClient *core.Api, dedupKey, filePath string, workerID int, opts UploadOptions, callback ProgressCallback) {
 	fileName := filepath.Base(filePath)
 
 	// Set caption if configured
-	if AppConfig.Caption != "" {
+	if opts.Caption != "" {
 		callback("ThreadStatus", ThreadStatus{
 			WorkerID: workerID,
 			Status:   "finalizing",
@@ -469,13 +441,13 @@ func postUploadOps(apiClient *api.Api, dedupKey, filePath string, workerID int, 
 			FileName: fileName,
 			Message:  "Setting caption...",
 		})
-		if err := apiClient.SetCaption(dedupKey, AppConfig.Caption); err != nil {
+		if err := apiClient.SetCaption(dedupKey, opts.Caption); err != nil {
 			slog.Error("failed to set caption", "path", filePath, "error", err)
 		}
 	}
 
 	// Set favourite if configured
-	if AppConfig.ShouldFavourite {
+	if opts.ShouldFavourite {
 		callback("ThreadStatus", ThreadStatus{
 			WorkerID: workerID,
 			Status:   "finalizing",
@@ -489,7 +461,7 @@ func postUploadOps(apiClient *api.Api, dedupKey, filePath string, workerID int, 
 	}
 
 	// Archive if configured
-	if AppConfig.ShouldArchive {
+	if opts.ShouldArchive {
 		callback("ThreadStatus", ThreadStatus{
 			WorkerID: workerID,
 			Status:   "finalizing",

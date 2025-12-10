@@ -1,5 +1,7 @@
 package main
 
+import "gpcli/cli"
+
 func main() {
-	runCLI()
+	cli.Run()
 }

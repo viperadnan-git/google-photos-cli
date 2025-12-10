@@ -1,11 +1,11 @@
-package main
+package cli
 
 import (
 	"bytes"
 	"context"
 	"fmt"
-	"gpcli/src"
-	"gpcli/src/api"
+	"gpcli/gogpm"
+	"gpcli/gogpm/core"
 	"io"
 	"log/slog"
 	"os"
@@ -18,6 +18,9 @@ import (
 var logger *slog.Logger
 var currentLogLevel slog.Level
 var logFormat string
+var configPath string
+var authOverride string
+var cfgManager *ConfigManager
 
 // humanHandler is a slog.Handler that outputs human-readable logs without timestamps
 type humanHandler struct {
@@ -85,11 +88,12 @@ func initQuietLogger() {
 	initLogger(slog.LevelError)
 }
 
-func runCLI() {
+// Run executes the CLI application
+func Run() {
 	cmd := &cli.Command{
 		Name:                   "gpcli",
 		Usage:                  "Google Photos unofficial CLI client",
-		Version:                src.Version,
+		Version:                gogpm.Version,
 		UseShortOptionHandling: true,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
@@ -98,9 +102,9 @@ func runCLI() {
 				Usage:   "Path to config file (default: ./gpcli.config)",
 			},
 			&cli.StringFlag{
-				Name:    "log-level",
-				Value:   "info",
-				Usage:   "Set log level: debug, info, warn, error",
+				Name:  "log-level",
+				Value: "info",
+				Usage: "Set log level: debug, info, warn, error",
 			},
 			&cli.BoolFlag{
 				Name:    "quiet",
@@ -129,14 +133,12 @@ func runCLI() {
 				initLogger(currentLogLevel)
 			}
 
-			// Set config path from global flag before any command runs
-			if configPath := cmd.String("config"); configPath != "" {
-				src.ConfigPath = configPath
-			}
+			// Set config path from flag
+			configPath = cmd.String("config")
 
 			// Set auth override from flag (strip whitespace)
 			if auth := cmd.String("auth"); auth != "" {
-				src.AuthOverride = strings.TrimSpace(auth)
+				authOverride = strings.TrimSpace(auth)
 			}
 			return ctx, nil
 		},
@@ -216,9 +218,9 @@ func runCLI() {
 						Usage: "Only print download URL without downloading",
 					},
 					&cli.StringFlag{
-						Name:  "output",
+						Name:    "output",
 						Aliases: []string{"o"},
-						Usage: "Output path (file path or directory)",
+						Usage:   "Output path (file path or directory)",
 					},
 				},
 				Action: downloadAction,
@@ -298,49 +300,48 @@ func uploadAction(ctx context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("file or directory does not exist: %s", filePath)
 	}
 
-	// Load backend config
-	err := src.LoadConfig()
-	if err != nil {
+	// Load config
+	if err := loadConfig(); err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
+	cfg := cfgManager.GetConfig()
 
-	// Override config with CLI flags
+	// Get CLI flags
 	threads := int(cmd.Int("threads"))
-	src.AppConfig.Recursive = cmd.Bool("recursive")
-	src.AppConfig.UploadThreads = threads
-	src.AppConfig.ForceUpload = cmd.Bool("force")
-	src.AppConfig.DeleteFromHost = cmd.Bool("delete")
-	src.AppConfig.DisableUnsupportedFilesFilter = cmd.Bool("disable-filter")
-	src.AppConfig.UseQuota = cmd.Bool("use-quota")
-
-	// Handle quality flag
 	quality := cmd.String("quality")
 	if quality != "original" && quality != "storage-saver" {
 		return fmt.Errorf("invalid quality: %s (use 'original' or 'storage-saver')", quality)
 	}
-	src.AppConfig.Quality = quality
-
-	// Get album name and set runtime config for post-upload operations
 	albumName := cmd.String("album")
-	src.AppConfig.ShouldArchive = cmd.Bool("archive")
-	src.AppConfig.Caption = cmd.String("caption")
-	src.AppConfig.ShouldFavourite = cmd.Bool("favourite")
 
-	// Log configuration at start
-	logger.Info("starting upload",
-		"path", filePath,
-		"threads", threads,
-		"recursive", src.AppConfig.Recursive,
-		"force", src.AppConfig.ForceUpload,
-		"delete", src.AppConfig.DeleteFromHost,
-		"disable-filter", src.AppConfig.DisableUnsupportedFilesFilter,
-		"quality", quality,
-		"use-quota", src.AppConfig.UseQuota,
-		"album", albumName,
-		"archive", src.AppConfig.ShouldArchive,
-		"caption", src.AppConfig.Caption,
-		"favourite", src.AppConfig.ShouldFavourite,
-	)
+	// Build upload options from CLI flags
+	uploadOpts := gogpm.UploadOptions{
+		Threads:         threads,
+		Recursive:       cmd.Bool("recursive"),
+		ForceUpload:     cmd.Bool("force"),
+		DeleteFromHost:  cmd.Bool("delete"),
+		DisableFilter:   cmd.Bool("disable-filter"),
+		Caption:         cmd.String("caption"),
+		ShouldFavourite: cmd.Bool("favourite"),
+		ShouldArchive:   cmd.Bool("archive"),
+		Quality:         quality,
+		UseQuota:        cmd.Bool("use-quota"),
+	}
+
+	// Resolve auth data
+	authData := getAuthData(cfg)
+	if authData == "" {
+		return fmt.Errorf("no authentication configured. Use 'gpcli auth add' to add credentials")
+	}
+
+	// Build API config
+	apiCfg := core.ApiConfig{
+		AuthData: authData,
+		Proxy:    cfg.Proxy,
+	}
+
+	// Log start
+	logger.Info("scanning files", "path", filePath)
 
 	// Track results
 	var mu sync.Mutex
@@ -351,50 +352,41 @@ func uploadAction(ctx context.Context, cmd *cli.Command) error {
 	var successfulMediaKeys []string
 	done := make(chan struct{})
 
-	// Create CLI app with event callback
+	// Create event callback
 	eventCallback := func(event string, data any) {
 		mu.Lock()
 		defer mu.Unlock()
 
 		switch event {
 		case "uploadStart":
-			if start, ok := data.(src.UploadBatchStart); ok {
+			if start, ok := data.(gogpm.UploadBatchStart); ok {
 				totalFiles = start.Total
-				logger.Info("upload batch started", "total", totalFiles)
+				logger.Info("starting upload", "files", totalFiles, "threads", threads)
 			}
 		case "ThreadStatus":
-			if status, ok := data.(src.ThreadStatus); ok {
-				logger.Debug("worker status",
-					"worker_id", status.WorkerID,
-					"status", status.Status,
-					"file", status.FileName,
-				)
+			if status, ok := data.(gogpm.ThreadStatus); ok {
+				// Only log active upload states at debug level
+				if status.Status == "uploading" || status.Status == "hashing" {
+					logger.Debug(status.Message, "file", status.FileName)
+				}
 			}
 		case "FileStatus":
-			if result, ok := data.(src.FileUploadResult); ok {
+			if result, ok := data.(gogpm.FileUploadResult); ok {
+				processed := uploaded + existing + failed + 1
+				progress := fmt.Sprintf("[%d/%d]", processed, totalFiles)
+
 				if result.IsError {
 					failed++
-					logger.Error("upload failed",
-						"path", result.Path,
-						"error", result.Error,
-					)
+					logger.Error(progress+" failed", "file", result.Path, "error", result.Error)
 				} else if result.IsExisting {
 					existing++
-					logger.Info("already exists",
-						"path", result.Path,
-						"media_key", result.MediaKey,
-					)
-					// Collect media key for album
+					logger.Debug(progress+" skipped (exists)", "file", result.Path)
 					if result.MediaKey != "" {
 						successfulMediaKeys = append(successfulMediaKeys, result.MediaKey)
 					}
 				} else {
 					uploaded++
-					logger.Info("upload success",
-						"path", result.Path,
-						"media_key", result.MediaKey,
-					)
-					// Collect media key for album
+					logger.Debug(progress+" uploaded", "file", result.Path)
 					if result.MediaKey != "" {
 						successfulMediaKeys = append(successfulMediaKeys, result.MediaKey)
 					}
@@ -405,92 +397,80 @@ func uploadAction(ctx context.Context, cmd *cli.Command) error {
 		}
 	}
 
-	app := src.NewGooglePhotosCLI(eventCallback, currentLogLevel)
-	uploadManager := src.NewUploadManager(app)
+	api, err := gogpm.NewGooglePhotosAPI(apiCfg)
+	if err != nil {
+		return fmt.Errorf("failed to create API client: %w", err)
+	}
 
 	// Run upload in background
 	go func() {
-		uploadManager.Upload(app, []string{filePath})
+		api.Upload([]string{filePath}, uploadOpts, eventCallback)
 	}()
 
 	// Wait for upload to complete
 	<-done
 
 	// Print summary
-	logger.Info("upload complete",
-		"total", totalFiles,
-		"succeeded", uploaded+existing,
-		"failed", failed,
-		"uploaded", uploaded,
-		"existing", existing,
-	)
+	logger.Info("upload complete", "uploaded", uploaded, "skipped", existing, "failed", failed)
 
 	// Handle album creation if album name was specified
 	if albumName != "" && len(successfulMediaKeys) > 0 {
-		logger.Info("creating album", "name", albumName, "items", len(successfulMediaKeys))
+		logger.Info("adding to album", "album", albumName)
 
-		apiClient, err := api.NewApi(api.ApiConfig{
-			AuthOverride: src.AuthOverride,
-			Selected:     src.AppConfig.Selected,
-			Credentials:  src.AppConfig.Credentials,
-			Proxy:        src.AppConfig.Proxy,
-			Quality:      src.AppConfig.Quality,
-			UseQuota:     src.AppConfig.UseQuota,
-		})
-		if err != nil {
-			logger.Error("failed to create API client for album creation", "error", err)
-			return fmt.Errorf("failed to create API client: %w", err)
-		}
-
-		// Create album with media keys (API may have batch limits, handle large sets)
 		const batchSize = 500
-		var albumMediaKey string
+		firstBatchEnd := min(batchSize, len(successfulMediaKeys))
 
-		if len(successfulMediaKeys) <= batchSize {
-			// Create album with all media keys
-			albumMediaKey, err = apiClient.CreateAlbum(albumName, successfulMediaKeys)
-			if err != nil {
-				logger.Error("failed to create album", "error", err)
-				return fmt.Errorf("failed to create album: %w", err)
-			}
-		} else {
-			// Create album with first batch
-			albumMediaKey, err = apiClient.CreateAlbum(albumName, successfulMediaKeys[:batchSize])
-			if err != nil {
-				logger.Error("failed to create album", "error", err)
-				return fmt.Errorf("failed to create album: %w", err)
-			}
+		albumMediaKey, err := api.CreateAlbum(albumName, successfulMediaKeys[:firstBatchEnd])
+		if err != nil {
+			return fmt.Errorf("failed to create album: %w", err)
+		}
 
-			// Add remaining items in batches
-			for i := batchSize; i < len(successfulMediaKeys); i += batchSize {
-				end := i + batchSize
-				if end > len(successfulMediaKeys) {
-					end = len(successfulMediaKeys)
-				}
-				err = apiClient.AddMediaToAlbum(albumMediaKey, successfulMediaKeys[i:end])
-				if err != nil {
-					logger.Error("failed to add items to album", "batch_start", i, "error", err)
-				}
+		for i := batchSize; i < len(successfulMediaKeys); i += batchSize {
+			end := min(i+batchSize, len(successfulMediaKeys))
+			if err = api.AddMediaToAlbum(albumMediaKey, successfulMediaKeys[i:end]); err != nil {
+				logger.Warn("failed to add batch to album", "error", err)
 			}
 		}
 
-		logger.Info("album created", "name", albumName, "album_key", albumMediaKey, "items", len(successfulMediaKeys))
+		logger.Info("album ready", "album", albumName, "items", len(successfulMediaKeys))
 	}
-
-	// Note: Caption, favourite, and archive operations are now executed immediately
-	// after each file upload in the upload worker (src/upload.go postUploadOps)
 
 	return nil
 }
 
 func loadConfig() error {
-	return src.LoadConfig()
+	var err error
+	cfgManager, err = NewConfigManager(configPath)
+	return err
+}
+
+// getAuthData returns the auth data string based on authOverride or selected config
+func getAuthData(cfg Config) string {
+	if authOverride != "" {
+		return authOverride
+	}
+	// Find credentials for selected account
+	for _, cred := range cfg.Credentials {
+		params, err := ParseAuthString(cred)
+		if err != nil {
+			continue
+		}
+		if params.Get("Email") == cfg.Selected {
+			return cred
+		}
+	}
+	// Return first credential if no match
+	if len(cfg.Credentials) > 0 {
+		return cfg.Credentials[0]
+	}
+	return ""
 }
 
 func downloadAction(ctx context.Context, cmd *cli.Command) error {
 	if err := loadConfig(); err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
+	cfg := cfgManager.GetConfig()
 
 	mediaKey := cmd.Args().First()
 	if mediaKey == "" {
@@ -501,16 +481,21 @@ func downloadAction(ctx context.Context, cmd *cli.Command) error {
 	urlOnly := cmd.Bool("url")
 	outputPath := cmd.String("output")
 
-	apiClient, err := api.NewApi(api.ApiConfig{
-		AuthOverride: src.AuthOverride,
-		Selected:     src.AppConfig.Selected,
-		Credentials:  src.AppConfig.Credentials,
-		Proxy:        src.AppConfig.Proxy,
-		Quality:      src.AppConfig.Quality,
-		UseQuota:     src.AppConfig.UseQuota,
+	authData := getAuthData(cfg)
+	if authData == "" {
+		return fmt.Errorf("no authentication configured. Use 'gpcli auth add' to add credentials")
+	}
+
+	apiClient, err := core.NewApi(core.ApiConfig{
+		AuthData: authData,
+		Proxy:    cfg.Proxy,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create API client: %w", err)
+	}
+
+	if !urlOnly {
+		logger.Info("fetching download URL", "media_key", mediaKey)
 	}
 
 	editedURL, originalURL, err := apiClient.GetDownloadUrls(mediaKey)
@@ -520,9 +505,11 @@ func downloadAction(ctx context.Context, cmd *cli.Command) error {
 
 	// Select the URL to use
 	var downloadURL string
+	var urlType string
 	if getOriginal {
 		if originalURL != "" {
 			downloadURL = originalURL
+			urlType = "original"
 		} else {
 			return fmt.Errorf("original URL not available")
 		}
@@ -530,8 +517,10 @@ func downloadAction(ctx context.Context, cmd *cli.Command) error {
 		// Prefer edited URL, fallback to original
 		if editedURL != "" {
 			downloadURL = editedURL
+			urlType = "edited"
 		} else if originalURL != "" {
 			downloadURL = originalURL
+			urlType = "original"
 		} else {
 			return fmt.Errorf("no download URL available")
 		}
@@ -544,13 +533,20 @@ func downloadAction(ctx context.Context, cmd *cli.Command) error {
 	}
 
 	// Download the file
-	return downloadFile(apiClient, downloadURL, outputPath)
+	logger.Info("downloading", "url_type", urlType)
+	savedPath, err := gogpm.DownloadFile(downloadURL, outputPath)
+	if err != nil {
+		return err
+	}
+	logger.Info("download complete", "path", savedPath)
+	return nil
 }
 
 func thumbnailAction(ctx context.Context, cmd *cli.Command) error {
 	if err := loadConfig(); err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
+	cfg := cfgManager.GetConfig()
 
 	mediaKey := cmd.Args().First()
 	if mediaKey == "" {
@@ -561,27 +557,37 @@ func thumbnailAction(ctx context.Context, cmd *cli.Command) error {
 	width := int(cmd.Int("width"))
 	height := int(cmd.Int("height"))
 
-	apiClient, err := api.NewApi(api.ApiConfig{
-		AuthOverride: src.AuthOverride,
-		Selected:     src.AppConfig.Selected,
-		Credentials:  src.AppConfig.Credentials,
-		Proxy:        src.AppConfig.Proxy,
+	authData := getAuthData(cfg)
+	if authData == "" {
+		return fmt.Errorf("no authentication configured. Use 'gpcli auth add' to add credentials")
+	}
+
+	apiClient, err := core.NewApi(core.ApiConfig{
+		AuthData: authData,
+		Proxy:    cfg.Proxy,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create API client: %w", err)
 	}
 
+	logger.Info("downloading thumbnail", "media_key", mediaKey)
+
 	// Build thumbnail URL (force_jpeg=true, no_overlay=true by default)
 	thumbnailURL := apiClient.GetThumbnailURL(mediaKey, width, height, true, true)
 
 	// Download the thumbnail
-	return downloadThumbnail(apiClient, thumbnailURL, outputPath, mediaKey)
+	savedPath, err := gogpm.DownloadThumbnail(apiClient, thumbnailURL, outputPath, mediaKey)
+	if err != nil {
+		return err
+	}
+	logger.Info("thumbnail saved", "path", savedPath)
+	return nil
 }
 
 func authInfoAction(ctx context.Context, cmd *cli.Command) error {
 	// Check if --auth flag is set
-	if src.AuthOverride != "" {
-		params, err := src.ParseAuthString(src.AuthOverride)
+	if authOverride != "" {
+		params, err := ParseAuthString(authOverride)
 		if err != nil {
 			return fmt.Errorf("invalid auth string: %w", err)
 		}
@@ -595,8 +601,7 @@ func authInfoAction(ctx context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("error loading config: %w", err)
 	}
 
-	configManager := &src.ConfigManager{}
-	config := configManager.GetConfig()
+	config := cfgManager.GetConfig()
 
 	// Show current authentication
 	if config.Selected != "" {
@@ -613,7 +618,7 @@ func authInfoAction(ctx context.Context, cmd *cli.Command) error {
 
 	fmt.Println("\nAvailable accounts:")
 	for i, cred := range config.Credentials {
-		params, err := src.ParseAuthString(cred)
+		params, err := ParseAuthString(cred)
 		if err != nil {
 			fmt.Printf("  %d. [Invalid]\n", i+1)
 			continue
@@ -641,9 +646,8 @@ func credentialsAddAction(ctx context.Context, cmd *cli.Command) error {
 	}
 
 	authString := strings.TrimSpace(cmd.Args().First())
-	configManager := &src.ConfigManager{}
 
-	if err := configManager.AddCredentials(authString); err != nil {
+	if err := cfgManager.AddCredentials(authString); err != nil {
 		return fmt.Errorf("invalid credentials: %w", err)
 	}
 
@@ -661,15 +665,14 @@ func credentialsRemoveAction(ctx context.Context, cmd *cli.Command) error {
 	}
 
 	arg := cmd.Args().First()
-	configManager := &src.ConfigManager{}
-	config := configManager.GetConfig()
+	config := cfgManager.GetConfig()
 
 	email, err := resolveEmailFromArg(arg, config.Credentials)
 	if err != nil {
 		return err
 	}
 
-	if err := configManager.RemoveCredentials(email); err != nil {
+	if err := cfgManager.RemoveCredentials(email); err != nil {
 		return fmt.Errorf("error removing authentication: %w", err)
 	}
 
@@ -687,15 +690,14 @@ func credentialsSetAction(ctx context.Context, cmd *cli.Command) error {
 	}
 
 	arg := cmd.Args().First()
-	configManager := &src.ConfigManager{}
-	config := configManager.GetConfig()
+	config := cfgManager.GetConfig()
 
 	email, err := resolveEmailFromArg(arg, config.Credentials)
 	if err != nil {
 		return err
 	}
 
-	configManager.SetSelected(email)
+	cfgManager.SetSelected(email)
 	slog.Info("active account set", "email", email)
 
 	return nil
@@ -716,7 +718,7 @@ func resolveEmailFromArg(arg string, credentials []string) (string, error) {
 		if idx < 1 || idx > len(credentials) {
 			return "", fmt.Errorf("invalid index %d: must be between 1 and %d", idx, len(credentials))
 		}
-		params, err := src.ParseAuthString(credentials[idx-1])
+		params, err := ParseAuthString(credentials[idx-1])
 		if err != nil {
 			return "", fmt.Errorf("invalid credential at index %d", idx)
 		}
@@ -725,7 +727,7 @@ func resolveEmailFromArg(arg string, credentials []string) (string, error) {
 
 	// Otherwise treat as email - try exact match first
 	for _, cred := range credentials {
-		params, err := src.ParseAuthString(cred)
+		params, err := ParseAuthString(cred)
 		if err != nil {
 			continue
 		}
@@ -738,7 +740,7 @@ func resolveEmailFromArg(arg string, credentials []string) (string, error) {
 	// Try fuzzy matching
 	var candidates []string
 	for _, cred := range credentials {
-		params, err := src.ParseAuthString(cred)
+		params, err := ParseAuthString(cred)
 		if err != nil {
 			continue
 		}

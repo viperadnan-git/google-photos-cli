@@ -1,4 +1,4 @@
-package api
+package core
 
 import (
 	"compress/gzip"
@@ -14,12 +14,10 @@ import (
 
 // ApiConfig holds the configuration needed to create an API client
 type ApiConfig struct {
-	AuthOverride string   // Auth string from --auth flag
-	Selected     string   // Selected email from config
-	Credentials  []string // All stored credentials
-	Proxy        string   // Proxy URL
-	Quality      string   // "original" or "storage-saver"
-	UseQuota     bool     // Files count against quota
+	AuthData string // Authentication string
+	Proxy    string // Proxy URL
+	Quality  string // Default quality: "original" or "storage-saver"
+	UseQuota bool   // If true, uploaded files count against storage quota (default: false)
 }
 
 // Api represents a Google Photos API client
@@ -33,41 +31,20 @@ type Api struct {
 	AuthData          string
 	Client            *http.Client
 	authTokenCache    map[string]string
-	quality           string // "original" or "storage-saver"
-	useQuota          bool
+	Quality           string // Default quality: "original" or "storage-saver"
+	UseQuota          bool   // If true, uploaded files count against storage quota (default: false)
 }
 
 // NewApi creates a new Google Photos API client with the given configuration
 func NewApi(cfg ApiConfig) (*Api, error) {
-	var credentials string
-	var language string
+	if cfg.AuthData == "" {
+		return nil, fmt.Errorf("auth data is required")
+	}
 
-	// Check for auth override from --auth flag
-	if cfg.AuthOverride != "" {
-		credentials = cfg.AuthOverride
-		params, err := url.ParseQuery(cfg.AuthOverride)
-		if err == nil {
-			language = params.Get("lang")
-		}
-	} else {
-		// Use credentials from config file
-		selectedEmail := cfg.Selected
-		if len(selectedEmail) == 0 {
-			return nil, fmt.Errorf("no account is selected")
-		}
-		for _, c := range cfg.Credentials {
-			params, err := url.ParseQuery(c)
-			if err != nil {
-				continue
-			}
-			if params.Get("Email") == selectedEmail {
-				credentials = c
-				language = params.Get("lang")
-			}
-		}
-		if len(credentials) == 0 {
-			return nil, fmt.Errorf("no credentials with matching selected email found")
-		}
+	var language string
+	params, err := url.ParseQuery(cfg.AuthData)
+	if err == nil {
+		language = params.Get("lang")
 	}
 
 	client, err := NewHTTPClientWithProxy(cfg.Proxy)
@@ -81,14 +58,14 @@ func NewApi(cfg ApiConfig) (*Api, error) {
 		Make:              "Google",
 		ClientVersionCode: 49029607,
 		Language:          language,
-		AuthData:          strings.TrimSpace(credentials),
+		AuthData:          strings.TrimSpace(cfg.AuthData),
 		Client:            client,
 		authTokenCache: map[string]string{
 			"Expiry": "0",
 			"Auth":   "",
 		},
-		quality:  cfg.Quality,
-		useQuota: cfg.UseQuota,
+		Quality:  cfg.Quality,
+		UseQuota: cfg.UseQuota,
 	}
 
 	api.UserAgent = fmt.Sprintf(
