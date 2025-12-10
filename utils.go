@@ -151,3 +151,72 @@ func extractFilenameFromURL(urlStr string) string {
 	// If no filename found in path, try to find it in query params or use media key
 	return ""
 }
+
+func downloadThumbnail(apiClient *api.Api, thumbnailURL, outputPath, mediaKey string) error {
+	// Create HTTP request
+	req, err := http.NewRequest("GET", thumbnailURL, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// Set auth headers
+	bearerToken, err := apiClient.BearerToken()
+	if err != nil {
+		return fmt.Errorf("failed to get bearer token: %w", err)
+	}
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", bearerToken))
+	req.Header.Set("User-Agent", apiClient.UserAgent)
+	req.Header.Set("Accept-Encoding", "gzip")
+
+	resp, err := apiClient.Client.Do(req)
+	if err != nil {
+		return fmt.Errorf("download request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("download failed with status %d", resp.StatusCode)
+	}
+
+	// Default filename is media_key.jpg (since we force JPEG)
+	filename := mediaKey + ".jpg"
+
+	// Determine the final file path
+	var filePath string
+	if outputPath == "" {
+		filePath = filename
+	} else {
+		info, err := os.Stat(outputPath)
+		if err == nil && info.IsDir() {
+			filePath = filepath.Join(outputPath, filename)
+		} else if err != nil && os.IsNotExist(err) {
+			parentDir := filepath.Dir(outputPath)
+			if parentDir != "." && parentDir != "/" {
+				if err := os.MkdirAll(parentDir, 0755); err != nil {
+					return fmt.Errorf("failed to create directory %s: %w", parentDir, err)
+				}
+			}
+			filePath = outputPath
+		} else if err != nil {
+			return fmt.Errorf("failed to stat output path: %w", err)
+		} else {
+			filePath = outputPath
+		}
+	}
+
+	slog.Info("downloading thumbnail", "path", filePath)
+
+	outFile, err := os.Create(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to create output file: %w", err)
+	}
+	defer outFile.Close()
+
+	written, err := io.Copy(outFile, resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to write file: %w", err)
+	}
+
+	slog.Info("downloaded thumbnail", "bytes", written, "path", filePath)
+	return nil
+}

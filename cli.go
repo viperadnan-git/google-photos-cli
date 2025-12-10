@@ -99,7 +99,6 @@ func runCLI() {
 			},
 			&cli.StringFlag{
 				Name:    "log-level",
-				Aliases: []string{"l"},
 				Value:   "info",
 				Usage:   "Set log level: debug, info, warn, error",
 			},
@@ -223,6 +222,28 @@ func runCLI() {
 					},
 				},
 				Action: downloadAction,
+			},
+			{
+				Name:      "thumbnail",
+				Usage:     "Download thumbnail for a media item",
+				ArgsUsage: "<media_key>",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:    "output",
+						Aliases: []string{"o"},
+						Usage:   "Output path (file path or directory)",
+					},
+					&cli.IntFlag{
+						Name:    "width",
+						Aliases: []string{"w"},
+						Usage:   "Thumbnail width in pixels",
+					},
+					&cli.IntFlag{
+						Name:  "height",
+						Usage: "Thumbnail height in pixels",
+					},
+				},
+				Action: thumbnailAction,
 			},
 			{
 				Name:   "auth",
@@ -524,6 +545,37 @@ func downloadAction(ctx context.Context, cmd *cli.Command) error {
 
 	// Download the file
 	return downloadFile(apiClient, downloadURL, outputPath)
+}
+
+func thumbnailAction(ctx context.Context, cmd *cli.Command) error {
+	if err := loadConfig(); err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
+	}
+
+	mediaKey := cmd.Args().First()
+	if mediaKey == "" {
+		return fmt.Errorf("media_key is required")
+	}
+
+	outputPath := cmd.String("output")
+	width := int(cmd.Int("width"))
+	height := int(cmd.Int("height"))
+
+	apiClient, err := api.NewApi(api.ApiConfig{
+		AuthOverride: src.AuthOverride,
+		Selected:     src.AppConfig.Selected,
+		Credentials:  src.AppConfig.Credentials,
+		Proxy:        src.AppConfig.Proxy,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create API client: %w", err)
+	}
+
+	// Build thumbnail URL (force_jpeg=true, no_overlay=true by default)
+	thumbnailURL := apiClient.GetThumbnailURL(mediaKey, width, height, true, true)
+
+	// Download the thumbnail
+	return downloadThumbnail(apiClient, thumbnailURL, outputPath, mediaKey)
 }
 
 func authInfoAction(ctx context.Context, cmd *cli.Command) error {
