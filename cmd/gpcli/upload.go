@@ -7,7 +7,6 @@ import (
 	"sync"
 
 	gogpm "github.com/viperadnan-git/gogpm"
-	"github.com/viperadnan-git/gogpm/internal/core"
 
 	"github.com/urfave/cli/v3"
 )
@@ -59,7 +58,7 @@ func uploadAction(ctx context.Context, cmd *cli.Command) error {
 	}
 
 	// Build API config
-	apiCfg := core.ApiConfig{
+	apiCfg := gogpm.ApiConfig{
 		AuthData: authData,
 		Proxy:    cfg.Proxy,
 	}

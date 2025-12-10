@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	gogpm "github.com/viperadnan-git/gogpm"
-	"github.com/viperadnan-git/gogpm/internal/core"
 
 	"github.com/urfave/cli/v3"
 )
@@ -33,7 +32,7 @@ func deleteAction(ctx context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("no authentication configured. Use 'gpcli auth add' to add credentials")
 	}
 
-	apiClient, err := core.NewApi(core.ApiConfig{
+	apiClient, err := gogpm.NewGooglePhotosAPI(gogpm.ApiConfig{
 		AuthData: authData,
 		Proxy:    cfg.Proxy,
 	})
@@ -79,7 +78,7 @@ func archiveAction(ctx context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("no authentication configured. Use 'gpcli auth add' to add credentials")
 	}
 
-	apiClient, err := core.NewApi(core.ApiConfig{
+	apiClient, err := gogpm.NewGooglePhotosAPI(gogpm.ApiConfig{
 		AuthData: authData,
 		Proxy:    cfg.Proxy,
 	})
@@ -124,7 +123,7 @@ func favouriteAction(ctx context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("no authentication configured. Use 'gpcli auth add' to add credentials")
 	}
 
-	apiClient, err := core.NewApi(core.ApiConfig{
+	apiClient, err := gogpm.NewGooglePhotosAPI(gogpm.ApiConfig{
 		AuthData: authData,
 		Proxy:    cfg.Proxy,
 	})
@@ -169,7 +168,7 @@ func captionAction(ctx context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("no authentication configured. Use 'gpcli auth add' to add credentials")
 	}
 
-	apiClient, err := core.NewApi(core.ApiConfig{
+	apiClient, err := gogpm.NewGooglePhotosAPI(gogpm.ApiConfig{
 		AuthData: authData,
 		Proxy:    cfg.Proxy,
 	})

@@ -5,6 +5,9 @@ import (
 	"sync"
 )
 
+// ApiConfig holds configuration for the Google Photos API client
+type ApiConfig = core.ApiConfig
+
 // GooglePhotosAPI is the main API client for Google Photos operations
 type GooglePhotosAPI struct {
 	*core.Api
@@ -14,7 +17,7 @@ type GooglePhotosAPI struct {
 }
 
 // NewGooglePhotosAPI creates a new Google Photos API client
-func NewGooglePhotosAPI(cfg core.ApiConfig) (*GooglePhotosAPI, error) {
+func NewGooglePhotosAPI(cfg ApiConfig) (*GooglePhotosAPI, error) {
 	coreApi, err := core.NewApi(cfg)
 	if err != nil {
 		return nil, err

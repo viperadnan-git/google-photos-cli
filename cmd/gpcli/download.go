@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	gogpm "github.com/viperadnan-git/gogpm"
-	"github.com/viperadnan-git/gogpm/internal/core"
 
 	"github.com/urfave/cli/v3"
 )
@@ -29,7 +28,7 @@ func downloadAction(ctx context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("no authentication configured. Use 'gpcli auth add' to add credentials")
 	}
 
-	apiClient, err := core.NewApi(core.ApiConfig{
+	apiClient, err := gogpm.NewGooglePhotosAPI(gogpm.ApiConfig{
 		AuthData: authData,
 		Proxy:    cfg.Proxy,
 	})
@@ -37,7 +36,7 @@ func downloadAction(ctx context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("failed to create API client: %w", err)
 	}
 
-	mediaKey, err := gogpm.ResolveMediaKey(ctx, apiClient, input)
+	mediaKey, err := gogpm.ResolveMediaKey(ctx, apiClient.Api, input)
 	if err != nil {
 		return err
 	}
@@ -93,7 +92,7 @@ func thumbnailAction(ctx context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("no authentication configured. Use 'gpcli auth add' to add credentials")
 	}
 
-	apiClient, err := core.NewApi(core.ApiConfig{
+	apiClient, err := gogpm.NewGooglePhotosAPI(gogpm.ApiConfig{
 		AuthData: authData,
 		Proxy:    cfg.Proxy,
 	})
@@ -101,7 +100,7 @@ func thumbnailAction(ctx context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("failed to create API client: %w", err)
 	}
 
-	mediaKey, err := gogpm.ResolveMediaKey(ctx, apiClient, input)
+	mediaKey, err := gogpm.ResolveMediaKey(ctx, apiClient.Api, input)
 	if err != nil {
 		return err
 	}
