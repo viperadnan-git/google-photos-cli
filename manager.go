@@ -11,7 +11,7 @@ import (
 	"strings"
 	"sync"
 
-	"gpcli/gogpm/core"
+	"github.com/viperadnan-git/gogpm/internal/core"
 )
 
 // ProgressCallback is a function type for upload progress updates

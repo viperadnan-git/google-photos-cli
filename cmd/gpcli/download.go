@@ -1,10 +1,11 @@
-package cli
+package main
 
 import (
 	"context"
 	"fmt"
-	"gpcli/gogpm"
-	"gpcli/gogpm/core"
+
+	gogpm "github.com/viperadnan-git/gogpm"
+	"github.com/viperadnan-git/gogpm/internal/core"
 
 	"github.com/urfave/cli/v3"
 )

@@ -4,7 +4,7 @@ PREFIX ?= /usr/local
 GO ?= $(shell which go)
 
 build:
-	$(GO) build -o gpcli .
+	cd cmd/gpcli && $(GO) build -o ../../gpcli .
 
 clean:
 	rm -f gpcli

@@ -1,7 +1,7 @@
 package gogpm
 
 import (
-	"gpcli/gogpm/core"
+	"github.com/viperadnan-git/gogpm/internal/core"
 	"sync"
 )
 

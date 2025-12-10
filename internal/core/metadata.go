@@ -6,7 +6,7 @@ import (
 	"io"
 	"net/http"
 
-	"gpcli/pb"
+	"github.com/viperadnan-git/gogpm/internal/pb"
 
 	"google.golang.org/protobuf/proto"
 )

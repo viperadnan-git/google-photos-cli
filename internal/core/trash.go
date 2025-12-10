@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"gpcli/pb"
+	"github.com/viperadnan-git/gogpm/internal/pb"
 
 	"google.golang.org/protobuf/proto"
 )

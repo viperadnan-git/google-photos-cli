@@ -1,5 +1,5 @@
 syntax = "proto3";
-option go_package = "/pb";
+option go_package = "github.com/viperadnan-git/gogpm/internal/pb";
 
 // SetArchived is used to archive or unarchive media items
 message SetArchived {

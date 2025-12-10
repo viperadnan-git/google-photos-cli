@@ -1,4 +1,4 @@
-package cli
+package main
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 
 	"github.com/creativeprojects/go-selfupdate"
 	"github.com/urfave/cli/v3"
-	"gpcli/gogpm"
+	gogpm "github.com/viperadnan-git/gogpm"
 )
 
 func upgradeAction(ctx context.Context, cmd *cli.Command) error {

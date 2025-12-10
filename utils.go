@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"gpcli/gogpm/core"
+	"github.com/viperadnan-git/gogpm/internal/core"
 )
 
 // DownloadFromReader saves data from an io.Reader to the specified output path

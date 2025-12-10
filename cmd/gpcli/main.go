@@ -1,17 +1,17 @@
-package cli
+package main
 
 import (
 	"context"
-	"gpcli/gogpm"
 	"log/slog"
 	"os"
 	"strings"
 
+	gogpm "github.com/viperadnan-git/gogpm"
+
 	"github.com/urfave/cli/v3"
 )
 
-// Run executes the CLI application
-func Run() {
+func main() {
 	cmd := &cli.Command{
 		Name:                   "gpcli",
 		Usage:                  "Google Photos unofficial CLI client",
