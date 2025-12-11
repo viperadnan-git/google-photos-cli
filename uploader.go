@@ -107,12 +107,10 @@ func (g *GooglePhotosAPI) Upload(ctx context.Context, paths []string, opts Uploa
 			default:
 			}
 			if first {
-				events <- UploadEvent{Path: path, Status: StatusHashing, Total: len(files), WorkerID: 0}
+				events <- UploadEvent{Total: len(files)}
 				first = false
-				workChan <- path
-			} else {
-				workChan <- path
 			}
+			workChan <- path
 		}
 		close(workChan)
 		wg.Wait()

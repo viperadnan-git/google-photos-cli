@@ -85,14 +85,14 @@ func uploadAction(ctx context.Context, cmd *cli.Command) error {
 		case gogpm.StatusCompleted:
 			uploaded++
 			progress := fmt.Sprintf("[%d/%d]", uploaded+existing+failed, totalFiles)
-			logger.Debug(progress+" uploaded", "file", event.Path)
-			logger.Info("uploaded", "mediaKey", event.MediaKey, "file", event.Path)
+			logger.Info(progress+" uploaded", "mediaKey", event.MediaKey, "file", event.Path)
 			if event.MediaKey != "" {
 				successfulMediaKeys = append(successfulMediaKeys, event.MediaKey)
 			}
 		case gogpm.StatusSkipped:
 			existing++
-			logger.Info("uploaded", "mediaKey", event.MediaKey, "file", event.Path, "exists", true)
+			progress := fmt.Sprintf("[%d/%d]", uploaded+existing+failed, totalFiles)
+			logger.Info(progress+" skipped", "mediaKey", event.MediaKey, "file", event.Path, "exists", true)
 			if event.MediaKey != "" {
 				successfulMediaKeys = append(successfulMediaKeys, event.MediaKey)
 			}

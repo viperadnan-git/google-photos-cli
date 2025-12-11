@@ -50,7 +50,7 @@ gogpm/
 │   └── pb/              # Protobuf-generated Go code (internal)
 ├── .proto/              # Protobuf definitions
 ├── gogpm.go             # Public API: GooglePhotosAPI struct
-├── manager.go           # Upload orchestration with worker pool
+├── uploader.go          # Upload orchestration with worker pool
 ├── sha1.go              # File hash calculation
 ├── utils.go             # Download utilities, key resolution
 ├── version.go           # Version constant
@@ -73,7 +73,7 @@ replace github.com/viperadnan-git/gogpm => ../..
 
 - **Root package (gogpm)** - Public library API
   - `api.go` - GooglePhotosAPI struct embedding internal/core.Api
-  - `manager.go` - Upload orchestration with worker pool. Emits progress events.
+  - `uploader.go` - Upload orchestration with worker pool. Emits progress events.
   - `utils.go` - Download utilities, ResolveItemKey, ResolveMediaKey
   - `sha1.go` - File hash calculation
   - `version.go` - Version constant
