@@ -90,7 +90,7 @@ func uploadAction(ctx context.Context, cmd *cli.Command) error {
 			}
 		case gogpm.StatusSkipped:
 			existing++
-			logger.Info("uploaded",  "mediaKey", event.MediaKey,"file", event.Path, "exists", true)
+			logger.Info("uploaded", "mediaKey", event.MediaKey, "file", event.Path, "exists", true)
 			if event.MediaKey != "" {
 				successfulMediaKeys = append(successfulMediaKeys, event.MediaKey)
 			}

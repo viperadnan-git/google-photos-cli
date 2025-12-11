@@ -77,7 +77,7 @@ func main() {
 				Usage: "Upload a file or directory to Google Photos",
 				Arguments: []cli.Argument{
 					&cli.StringArg{
-						Name: "filepath",
+						Name:      "filepath",
 						UsageText: "Path to the file or directory to upload",
 					},
 				},
@@ -104,12 +104,12 @@ func main() {
 						Usage:   "Delete from host after upload",
 					},
 					&cli.BoolFlag{
-						Name:    "disable-filter",
-						Usage:   "Disable file type filtering",
+						Name:  "disable-filter",
+						Usage: "Disable file type filtering",
 					},
 					&cli.StringFlag{
-						Name:    "album",
-						Usage:   "Add uploaded files to album with this name (creates if not exists)",
+						Name:  "album",
+						Usage: "Add uploaded files to album with this name (creates if not exists)",
 					},
 					&cli.StringFlag{
 						Name:    "quality",
@@ -122,9 +122,9 @@ func main() {
 						Usage: "Uploaded files will count against your Google Photos storage quota",
 					},
 					&cli.BoolFlag{
-						Name:  "archive",
+						Name:    "archive",
 						Aliases: []string{"a"},
-						Usage: "Archive uploaded files after upload",
+						Usage:   "Archive uploaded files after upload",
 					},
 					&cli.StringFlag{
 						Name:  "caption",
