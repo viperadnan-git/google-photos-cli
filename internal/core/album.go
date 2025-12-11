@@ -1,14 +1,10 @@
 package core
 
 import (
-	"bytes"
 	"fmt"
-	"net/http"
 	"time"
 
 	"github.com/viperadnan-git/gogpm/internal/pb"
-
-	"google.golang.org/protobuf/proto"
 )
 
 // CreateAlbum creates a new album with the specified media keys
@@ -36,49 +32,16 @@ func (a *Api) CreateAlbum(albumName string, mediaKeys []string) (string, error) 
 		},
 	}
 
-	serializedData, err := proto.Marshal(&requestBody)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal protobuf: %w", err)
-	}
-
-	bearerToken, err := a.BearerToken()
-	if err != nil {
-		return "", fmt.Errorf("failed to get bearer token: %w", err)
-	}
-
-	headers := a.CommonHeaders(bearerToken)
-
-	req, err := http.NewRequest(
-		"POST",
-		"https://photosdata-pa.googleapis.com/6439526531001121323/8386163679468898444",
-		bytes.NewReader(serializedData),
-	)
-	if err != nil {
-		return "", fmt.Errorf("failed to create request: %w", err)
-	}
-
-	for k, v := range headers {
-		req.Header.Set(k, v)
-	}
-
-	resp, err := a.Client.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if err := checkResponse(resp); err != nil {
-		return "", err
-	}
-
-	bodyBytes, err := readGzipBody(resp)
-	if err != nil {
-		return "", fmt.Errorf("failed to read response body: %w", err)
-	}
-
 	var response pb.CreateAlbumResponse
-	if err := proto.Unmarshal(bodyBytes, &response); err != nil {
-		return "", fmt.Errorf("failed to unmarshal protobuf: %w", err)
+	if err := a.DoProtoRequest(
+		"https://photosdata-pa.googleapis.com/6439526531001121323/8386163679468898444",
+		&requestBody,
+		&response,
+		WithAuth(),
+		WithCommonHeaders(),
+		WithStatusCheck(),
+	); err != nil {
+		return "", err
 	}
 
 	if response.GetField1() == nil {
@@ -107,36 +70,12 @@ func (a *Api) AddMediaToAlbum(albumMediaKey string, mediaKeys []string) error {
 		Timestamp: time.Now().Unix(),
 	}
 
-	serializedData, err := proto.Marshal(&requestBody)
-	if err != nil {
-		return fmt.Errorf("failed to marshal protobuf: %w", err)
-	}
-
-	bearerToken, err := a.BearerToken()
-	if err != nil {
-		return fmt.Errorf("failed to get bearer token: %w", err)
-	}
-
-	headers := a.CommonHeaders(bearerToken)
-
-	req, err := http.NewRequest(
-		"POST",
+	return a.DoProtoRequest(
 		"https://photosdata-pa.googleapis.com/6439526531001121323/484917746253879292",
-		bytes.NewReader(serializedData),
+		&requestBody,
+		nil,
+		WithAuth(),
+		WithCommonHeaders(),
+		WithStatusCheck(),
 	)
-	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
-	}
-
-	for k, v := range headers {
-		req.Header.Set(k, v)
-	}
-
-	resp, err := a.Client.Do(req)
-	if err != nil {
-		return fmt.Errorf("request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	return checkResponse(resp)
 }

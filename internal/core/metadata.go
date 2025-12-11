@@ -1,13 +1,7 @@
 package core
 
 import (
-	"bytes"
-	"fmt"
-	"net/http"
-
 	"github.com/viperadnan-git/gogpm/internal/pb"
-
-	"google.golang.org/protobuf/proto"
 )
 
 // SetCaption sets the caption for a media item
@@ -18,38 +12,14 @@ func (a *Api) SetCaption(itemKey, caption string) error {
 		ItemKey: itemKey,
 	}
 
-	serializedData, err := proto.Marshal(&requestBody)
-	if err != nil {
-		return fmt.Errorf("failed to marshal protobuf: %w", err)
-	}
-
-	bearerToken, err := a.BearerToken()
-	if err != nil {
-		return fmt.Errorf("failed to get bearer token: %w", err)
-	}
-
-	headers := a.CommonHeaders(bearerToken)
-
-	req, err := http.NewRequest(
-		"POST",
+	return a.DoProtoRequest(
 		"https://photosdata-pa.googleapis.com/6439526531001121323/1552790390512470739",
-		bytes.NewReader(serializedData),
+		&requestBody,
+		nil,
+		WithAuth(),
+		WithCommonHeaders(),
+		WithStatusCheck(),
 	)
-	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
-	}
-
-	for k, v := range headers {
-		req.Header.Set(k, v)
-	}
-
-	resp, err := a.Client.Do(req)
-	if err != nil {
-		return fmt.Errorf("request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	return checkResponse(resp)
 }
 
 // SetFavourite sets or removes the favourite status for a media item
@@ -76,36 +46,12 @@ func (a *Api) SetFavourite(itemKey string, isFavourite bool) error {
 		},
 	}
 
-	serializedData, err := proto.Marshal(&requestBody)
-	if err != nil {
-		return fmt.Errorf("failed to marshal protobuf: %w", err)
-	}
-
-	bearerToken, err := a.BearerToken()
-	if err != nil {
-		return fmt.Errorf("failed to get bearer token: %w", err)
-	}
-
-	headers := a.CommonHeaders(bearerToken)
-
-	req, err := http.NewRequest(
-		"POST",
+	return a.DoProtoRequest(
 		"https://photosdata-pa.googleapis.com/6439526531001121323/5144645502632292153",
-		bytes.NewReader(serializedData),
+		&requestBody,
+		nil,
+		WithAuth(),
+		WithCommonHeaders(),
+		WithStatusCheck(),
 	)
-	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
-	}
-
-	for k, v := range headers {
-		req.Header.Set(k, v)
-	}
-
-	resp, err := a.Client.Do(req)
-	if err != nil {
-		return fmt.Errorf("request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	return checkResponse(resp)
 }

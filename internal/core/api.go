@@ -1,7 +1,9 @@
 package core
 
 import (
+	"bytes"
 	"compress/gzip"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -11,7 +13,65 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"google.golang.org/protobuf/proto"
 )
+
+// RequestConfig holds configurable options for API requests
+type RequestConfig struct {
+	Method            string            // HTTP method (GET, POST, PUT)
+	Headers           map[string]string // Additional headers to merge
+	Auth              bool              // Include bearer token
+	CommonHeaders     bool              // Include full CommonHeaders vs minimal
+	Context           context.Context   // Request context
+	StreamingResponse bool              // Return body as stream (caller closes)
+	CheckStatus       bool              // Check response status with checkResponse
+}
+
+// RequestOption modifies a RequestConfig
+type RequestOption func(*RequestConfig)
+
+// WithMethod sets the HTTP method (default: POST)
+func WithMethod(method string) RequestOption {
+	return func(c *RequestConfig) { c.Method = method }
+}
+
+// WithHeaders adds custom headers (merged with base headers)
+func WithHeaders(headers map[string]string) RequestOption {
+	return func(c *RequestConfig) {
+		if c.Headers == nil {
+			c.Headers = make(map[string]string)
+		}
+		for k, v := range headers {
+			c.Headers[k] = v
+		}
+	}
+}
+
+// WithContext sets the request context
+func WithContext(ctx context.Context) RequestOption {
+	return func(c *RequestConfig) { c.Context = ctx }
+}
+
+// WithAuth enables bearer token authentication
+func WithAuth() RequestOption {
+	return func(c *RequestConfig) { c.Auth = true }
+}
+
+// WithCommonHeaders includes full API headers (vs minimal Auth + User-Agent)
+func WithCommonHeaders() RequestOption {
+	return func(c *RequestConfig) { c.CommonHeaders = true }
+}
+
+// WithStreamingResponse returns body as stream instead of reading it
+func WithStreamingResponse() RequestOption {
+	return func(c *RequestConfig) { c.StreamingResponse = true }
+}
+
+// WithStatusCheck enables response status validation via checkResponse
+func WithStatusCheck() RequestOption {
+	return func(c *RequestConfig) { c.CheckStatus = true }
+}
 
 // ApiConfig holds the configuration needed to create an API client
 type ApiConfig struct {
@@ -33,8 +93,8 @@ type Api struct {
 	Client            *http.Client
 	authTokenCache    map[string]string
 	authMu            sync.Mutex // Protects authTokenCache
-	Quality           string // Default quality: "original" or "storage-saver"
-	UseQuota          bool   // If true, uploaded files count against storage quota (default: false)
+	Quality           string     // Default quality: "original" or "storage-saver"
+	UseQuota          bool       // If true, uploaded files count against storage quota (default: false)
 }
 
 // NewApi creates a new Google Photos API client with the given configuration
@@ -191,14 +251,13 @@ func (a *Api) refreshAuthToken() (map[string]string, error) {
 	return parsedAuthResponse, nil
 }
 
-// CommonHeaders returns the standard headers used for Google Photos API requests
-func (a *Api) CommonHeaders(bearerToken string) map[string]string {
+// CommonHeaders returns the standard headers for Google Photos API requests
+func (a *Api) CommonHeaders() map[string]string {
 	return map[string]string{
 		"Accept-Encoding":          "gzip",
 		"Accept-Language":          a.Language,
 		"Content-Type":             "application/x-protobuf",
 		"User-Agent":               a.UserAgent,
-		"Authorization":            "Bearer " + bearerToken,
 		"x-goog-ext-173412678-bin": "CgcIAhClARgC",
 		"x-goog-ext-174067345-bin": "CgIIAg==",
 	}
@@ -236,4 +295,103 @@ func readGzipBody(resp *http.Response) ([]byte, error) {
 		reader = gr
 	}
 	return io.ReadAll(reader)
+}
+
+// DoRequest executes an HTTP request with full lifecycle management.
+// Returns body bytes, http.Response (for headers), and error.
+// For streaming (WithStreamResponse), body is nil and caller must close resp.Body.
+func (a *Api) DoRequest(url string, body io.Reader, opts ...RequestOption) ([]byte, *http.Response, error) {
+	cfg := &RequestConfig{
+		Method:        "POST",
+		Headers:       make(map[string]string),
+		Auth:          false,
+		CommonHeaders: false,
+		Context:       context.Background(),
+	}
+
+	for _, opt := range opts {
+		opt(cfg)
+	}
+
+	// Build headers based on config
+	allHeaders := make(map[string]string)
+	if cfg.CommonHeaders {
+		for k, v := range a.CommonHeaders() {
+			allHeaders[k] = v
+		}
+	}
+	if cfg.Auth {
+		bearerToken, err := a.BearerToken()
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to get bearer token: %w", err)
+		}
+		allHeaders["Authorization"] = "Bearer " + bearerToken
+		allHeaders["User-Agent"] = a.UserAgent
+	}
+
+	// Merge custom headers (custom headers override defaults)
+	for k, v := range cfg.Headers {
+		allHeaders[k] = v
+	}
+
+	// Create request
+	req, err := http.NewRequestWithContext(cfg.Context, cfg.Method, url, body)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// Apply headers
+	for k, v := range allHeaders {
+		req.Header.Set(k, v)
+	}
+
+	// Execute request
+	resp, err := a.Client.Do(req)
+	if err != nil {
+		return nil, nil, fmt.Errorf("request failed: %w", err)
+	}
+
+	// Validate response status if requested
+	if cfg.CheckStatus {
+		if err := checkResponse(resp); err != nil {
+			resp.Body.Close()
+			return nil, nil, err
+		}
+	}
+
+	// For streaming responses, return without reading body
+	if cfg.StreamingResponse {
+		return nil, resp, nil
+	}
+
+	// Read body (handling gzip)
+	bodyBytes, err := readGzipBody(resp)
+	resp.Body.Close()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	return bodyBytes, resp, nil
+}
+
+// DoProtoRequest marshals a protobuf request, sends it, and optionally unmarshals the response.
+// If respMsg is nil, the response body is not unmarshaled (fire-and-forget).
+func (a *Api) DoProtoRequest(url string, reqMsg proto.Message, respMsg proto.Message, opts ...RequestOption) error {
+	serializedData, err := proto.Marshal(reqMsg)
+	if err != nil {
+		return fmt.Errorf("failed to marshal protobuf: %w", err)
+	}
+
+	bodyBytes, _, err := a.DoRequest(url, bytes.NewReader(serializedData), opts...)
+	if err != nil {
+		return err
+	}
+
+	if respMsg != nil {
+		if err := proto.Unmarshal(bodyBytes, respMsg); err != nil {
+			return fmt.Errorf("failed to unmarshal protobuf: %w", err)
+		}
+	}
+
+	return nil
 }

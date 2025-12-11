@@ -31,41 +31,18 @@ func (a *Api) GetUploadToken(sha1HashBase64 string, fileSize int64) (string, err
 		return "", fmt.Errorf("failed to marshal protobuf: %w", err)
 	}
 
-	bearerToken, err := a.BearerToken()
-	if err != nil {
-		return "", fmt.Errorf("failed to get bearer token: %w", err)
-	}
-
-	headers := map[string]string{
-		"Accept-Encoding":         "gzip",
-		"Accept-Language":         a.Language,
-		"Content-Type":            "application/x-protobuf",
-		"User-Agent":              a.UserAgent,
-		"Authorization":           "Bearer " + bearerToken,
-		"X-Goog-Hash":             "sha1=" + sha1HashBase64,
-		"X-Upload-Content-Length": strconv.Itoa(int(fileSize)),
-	}
-
-	req, err := http.NewRequest(
-		"POST",
+	_, resp, err := a.DoRequest(
 		"https://photos.googleapis.com/data/upload/uploadmedia/interactive",
 		bytes.NewReader(serializedData),
+		WithAuth(),
+		WithCommonHeaders(),
+		WithStatusCheck(),
+		WithHeaders(map[string]string{
+			"X-Goog-Hash":             "sha1=" + sha1HashBase64,
+			"X-Upload-Content-Length": strconv.Itoa(int(fileSize)),
+		}),
 	)
 	if err != nil {
-		return "", fmt.Errorf("failed to create request: %w", err)
-	}
-
-	for k, v := range headers {
-		req.Header.Set(k, v)
-	}
-
-	resp, err := a.Client.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if err := checkResponse(resp); err != nil {
 		return "", err
 	}
 
@@ -88,55 +65,16 @@ func (a *Api) FindRemoteMediaByHash(sha1Hash []byte) (string, error) {
 		},
 	}
 
-	serializedData, err := proto.Marshal(&requestBody)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal protobuf: %w", err)
-	}
-
-	bearerToken, err := a.BearerToken()
-	if err != nil {
-		return "", fmt.Errorf("failed to get bearer token: %w", err)
-	}
-
-	headers := map[string]string{
-		"Accept-Encoding": "gzip",
-		"Accept-Language": a.Language,
-		"Content-Type":    "application/x-protobuf",
-		"User-Agent":      a.UserAgent,
-		"Authorization":   "Bearer " + bearerToken,
-	}
-
-	req, err := http.NewRequest(
-		"POST",
-		"https://photosdata-pa.googleapis.com/6439526531001121323/5084965799730810217",
-		bytes.NewReader(serializedData),
-	)
-	if err != nil {
-		return "", fmt.Errorf("failed to create request: %w", err)
-	}
-
-	for k, v := range headers {
-		req.Header.Set(k, v)
-	}
-
-	resp, err := a.Client.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if err := checkResponse(resp); err != nil {
-		return "", err
-	}
-
-	bodyBytes, err := readGzipBody(resp)
-	if err != nil {
-		return "", fmt.Errorf("failed to read response body: %w", err)
-	}
-
 	var response pb.RemoteMatches
-	if err := proto.Unmarshal(bodyBytes, &response); err != nil {
-		return "", fmt.Errorf("failed to unmarshal protobuf: %w", err)
+	if err := a.DoProtoRequest(
+		"https://photosdata-pa.googleapis.com/6439526531001121323/5084965799730810217",
+		&requestBody,
+		&response,
+		WithAuth(),
+		WithCommonHeaders(),
+		WithStatusCheck(),
+	); err != nil {
+		return "", err
 	}
 
 	return response.GetMediaKey(), nil
@@ -257,49 +195,16 @@ func (a *Api) CommitUpload(
 		Field3: []byte{1, 3},
 	}
 
-	serializedData, err := proto.Marshal(&requestBody)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal protobuf: %w", err)
-	}
-
-	bearerToken, err := a.BearerToken()
-	if err != nil {
-		return "", fmt.Errorf("failed to get bearer token: %w", err)
-	}
-
-	headers := a.CommonHeaders(bearerToken)
-
-	req, err := http.NewRequest(
-		"POST",
-		"https://photosdata-pa.googleapis.com/6439526531001121323/16538846908252377752",
-		bytes.NewReader(serializedData),
-	)
-	if err != nil {
-		return "", fmt.Errorf("failed to create request: %w", err)
-	}
-
-	for k, v := range headers {
-		req.Header.Set(k, v)
-	}
-
-	resp, err := a.Client.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if err := checkResponse(resp); err != nil {
-		return "", err
-	}
-
-	bodyBytes, err := readGzipBody(resp)
-	if err != nil {
-		return "", fmt.Errorf("failed to read response body: %w", err)
-	}
-
 	var response pb.CommitUploadResponse
-	if err := proto.Unmarshal(bodyBytes, &response); err != nil {
-		return "", fmt.Errorf("failed to unmarshal protobuf: %w", err)
+	if err := a.DoProtoRequest(
+		"https://photosdata-pa.googleapis.com/6439526531001121323/16538846908252377752",
+		&requestBody,
+		&response,
+		WithAuth(),
+		WithCommonHeaders(),
+		WithStatusCheck(),
+	); err != nil {
+		return "", err
 	}
 
 	if response.GetField1() == nil || response.GetField1().GetField3() == nil {

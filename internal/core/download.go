@@ -1,13 +1,7 @@
 package core
 
 import (
-	"bytes"
-	"fmt"
-	"net/http"
-
 	"github.com/viperadnan-git/gogpm/internal/pb"
-
-	"google.golang.org/protobuf/proto"
 )
 
 // GetDownloadUrl gets the download URL for a media item
@@ -36,52 +30,16 @@ func (a *Api) GetDownloadUrl(mediaKey string) (downloadURL string, isEdited bool
 		},
 	}
 
-	serializedData, err := proto.Marshal(&requestBody)
-	if err != nil {
-		return "", false, fmt.Errorf("failed to marshal protobuf: %w", err)
-	}
-
-	bearerToken, err := a.BearerToken()
-	if err != nil {
-		return "", false, fmt.Errorf("failed to get bearer token: %w", err)
-	}
-
-	headers := a.CommonHeaders(bearerToken)
-
-	req, err := http.NewRequest(
-		"POST",
-		"https://photosdata-pa.googleapis.com/$rpc/social.frontend.photos.preparedownloaddata.v1.PhotosPrepareDownloadDataService/PhotosPrepareDownload",
-		bytes.NewReader(serializedData),
-	)
-	if err != nil {
-		return "", false, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	for k, v := range headers {
-		req.Header.Set(k, v)
-	}
-
-	resp, err := a.Client.Do(req)
-	if err != nil {
-		return "", false, fmt.Errorf("request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == 404 {
-		return "", false, fmt.Errorf("media item not found (status 404) - verify the media_key is correct")
-	}
-	if err := checkResponse(resp); err != nil {
-		return "", false, err
-	}
-
-	bodyBytes, err := readGzipBody(resp)
-	if err != nil {
-		return "", false, fmt.Errorf("failed to read response body: %w", err)
-	}
-
 	var response pb.GetDownloadUrlResponse
-	if err := proto.Unmarshal(bodyBytes, &response); err != nil {
-		return "", false, fmt.Errorf("failed to unmarshal protobuf: %w", err)
+	if err := a.DoProtoRequest(
+		"https://photosdata-pa.googleapis.com/$rpc/social.frontend.photos.preparedownloaddata.v1.PhotosPrepareDownloadDataService/PhotosPrepareDownload",
+		&requestBody,
+		&response,
+		WithAuth(),
+		WithCommonHeaders(),
+		WithStatusCheck(),
+	); err != nil {
+		return "", false, err
 	}
 
 	if response.GetField1() != nil && response.GetField1().GetField5() != nil && response.GetField1().GetField5().GetField3() != nil {

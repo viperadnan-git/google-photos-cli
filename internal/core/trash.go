@@ -1,14 +1,9 @@
 package core
 
 import (
-	"bytes"
-	"fmt"
-	"net/http"
 	"strconv"
 
 	"github.com/viperadnan-git/gogpm/internal/pb"
-
-	"google.golang.org/protobuf/proto"
 )
 
 // MoveToTrash moves items to trash
@@ -39,38 +34,14 @@ func (a *Api) MoveToTrash(itemKeys []string) error {
 		},
 	}
 
-	serializedData, err := proto.Marshal(&requestBody)
-	if err != nil {
-		return fmt.Errorf("failed to marshal protobuf: %w", err)
-	}
-
-	bearerToken, err := a.BearerToken()
-	if err != nil {
-		return fmt.Errorf("failed to get bearer token: %w", err)
-	}
-
-	headers := a.CommonHeaders(bearerToken)
-
-	req, err := http.NewRequest(
-		"POST",
+	return a.DoProtoRequest(
 		"https://photosdata-pa.googleapis.com/6439526531001121323/17490284929287180316",
-		bytes.NewReader(serializedData),
+		&requestBody,
+		nil,
+		WithAuth(),
+		WithCommonHeaders(),
+		WithStatusCheck(),
 	)
-	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
-	}
-
-	for k, v := range headers {
-		req.Header.Set(k, v)
-	}
-
-	resp, err := a.Client.Do(req)
-	if err != nil {
-		return fmt.Errorf("request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	return checkResponse(resp)
 }
 
 // RestoreFromTrash restores items from trash
@@ -97,36 +68,12 @@ func (a *Api) RestoreFromTrash(itemKeys []string) error {
 		},
 	}
 
-	serializedData, err := proto.Marshal(&requestBody)
-	if err != nil {
-		return fmt.Errorf("failed to marshal protobuf: %w", err)
-	}
-
-	bearerToken, err := a.BearerToken()
-	if err != nil {
-		return fmt.Errorf("failed to get bearer token: %w", err)
-	}
-
-	headers := a.CommonHeaders(bearerToken)
-
-	req, err := http.NewRequest(
-		"POST",
+	return a.DoProtoRequest(
 		"https://photosdata-pa.googleapis.com/6439526531001121323/17490284929287180316",
-		bytes.NewReader(serializedData),
+		&requestBody,
+		nil,
+		WithAuth(),
+		WithCommonHeaders(),
+		WithStatusCheck(),
 	)
-	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
-	}
-
-	for k, v := range headers {
-		req.Header.Set(k, v)
-	}
-
-	resp, err := a.Client.Do(req)
-	if err != nil {
-		return fmt.Errorf("request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	return checkResponse(resp)
 }
