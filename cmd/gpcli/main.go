@@ -265,19 +265,19 @@ func main() {
 				Action: deleteAction,
 			},
 			{
-				Name:  "archive",
-				Usage: "Archive or unarchive item",
-				Arguments: []cli.Argument{
-					&cli.StringArg{
-						Name:      "input",
-						UsageText: "Media key, dedup key, or file path",
-					},
-				},
+				Name:      "archive",
+				Usage:     "Archive or unarchive items",
+				UsageText: "gpcli archive <input> [input...] [--from-file FILE]",
 				Flags: []cli.Flag{
 					&cli.BoolFlag{
 						Name:    "unarchive",
 						Aliases: []string{"r", "u"},
 						Usage:   "Unarchive instead of archive",
+					},
+					&cli.StringFlag{
+						Name:    "from-file",
+						Aliases: []string{"i"},
+						Usage:   "Read item keys from file (one per line)",
 					},
 				},
 				Action: archiveAction,

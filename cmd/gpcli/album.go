@@ -53,12 +53,12 @@ func albumCreateAction(ctx context.Context, cmd *cli.Command) error {
 
 	logger.Info("creating album", "name", albumName, "media_count", len(mediaKeys))
 
-	albumMediaKey, err := apiClient.CreateAlbum(albumName, mediaKeys)
+	albumKey, err := apiClient.CreateAlbum(albumName, mediaKeys)
 	if err != nil {
 		return fmt.Errorf("failed to create album: %w", err)
 	}
 
-	logger.Info("album created successfully", "name", albumName, "album_key", albumMediaKey, "media_count", len(mediaKeys))
+	logger.Info("album created successfully", "name", albumName, "album_key", albumKey, "media_count", len(mediaKeys))
 	return nil
 }
 
@@ -68,9 +68,9 @@ func albumAddAction(ctx context.Context, cmd *cli.Command) error {
 	}
 	cfg := cfgManager.GetConfig()
 
-	albumMediaKey := cmd.StringArg("album-key")
-	if albumMediaKey == "" {
-		return fmt.Errorf("album media key is required")
+	albumKey := cmd.StringArg("album-key")
+	if albumKey == "" {
+		return fmt.Errorf("album key is required")
 	}
 
 	// Collect media inputs from both command-line args and file
@@ -118,13 +118,13 @@ func albumAddAction(ctx context.Context, cmd *cli.Command) error {
 		mediaKeys = append(mediaKeys, mediaKey)
 	}
 
-	logger.Info("adding media to album", "album_key", albumMediaKey, "media_count", len(mediaKeys))
+	logger.Info("adding media to album", "album_key", albumKey, "media_count", len(mediaKeys))
 
-	if err := apiClient.AddMediaToAlbum(albumMediaKey, mediaKeys); err != nil {
+	if err := apiClient.AddMediaToAlbum(albumKey, mediaKeys); err != nil {
 		return fmt.Errorf("failed to add media to album: %w", err)
 	}
 
-	logger.Info("successfully added media to album", "album_key", albumMediaKey, "media_count", len(mediaKeys))
+	logger.Info("successfully added media to album", "album_key", albumKey, "media_count", len(mediaKeys))
 	return nil
 }
 
@@ -134,9 +134,9 @@ func albumDeleteAction(ctx context.Context, cmd *cli.Command) error {
 	}
 	cfg := cfgManager.GetConfig()
 
-	albumMediaKey := cmd.StringArg("album-key")
-	if albumMediaKey == "" {
-		return fmt.Errorf("album media key is required")
+	albumKey := cmd.StringArg("album-key")
+	if albumKey == "" {
+		return fmt.Errorf("album key is required")
 	}
 
 	authData := getAuthData(cfg)
@@ -152,13 +152,13 @@ func albumDeleteAction(ctx context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("failed to create API client: %w", err)
 	}
 
-	logger.Info("deleting album", "album_key", albumMediaKey)
+	logger.Info("deleting album", "album_key", albumKey)
 
-	if err := apiClient.DeleteAlbum(albumMediaKey); err != nil {
+	if err := apiClient.DeleteAlbum(albumKey); err != nil {
 		return fmt.Errorf("failed to delete album: %w", err)
 	}
 
-	logger.Info("album deleted successfully", "album_key", albumMediaKey)
+	logger.Info("album deleted successfully", "album_key", albumKey)
 	return nil
 }
 
@@ -168,9 +168,9 @@ func albumRenameAction(ctx context.Context, cmd *cli.Command) error {
 	}
 	cfg := cfgManager.GetConfig()
 
-	albumMediaKey := cmd.StringArg("album-key")
-	if albumMediaKey == "" {
-		return fmt.Errorf("album media key is required")
+	albumKey := cmd.StringArg("album-key")
+	if albumKey == "" {
+		return fmt.Errorf("album key is required")
 	}
 
 	newName := cmd.StringArg("new-name")
@@ -191,12 +191,12 @@ func albumRenameAction(ctx context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("failed to create API client: %w", err)
 	}
 
-	logger.Info("renaming album", "album_key", albumMediaKey, "new_name", newName)
+	logger.Info("renaming album", "album_key", albumKey, "new_name", newName)
 
-	if err := apiClient.RenameAlbum(albumMediaKey, newName); err != nil {
+	if err := apiClient.RenameAlbum(albumKey, newName); err != nil {
 		return fmt.Errorf("failed to rename album: %w", err)
 	}
 
-	logger.Info("album renamed successfully", "album_key", albumMediaKey, "new_name", newName)
+	logger.Info("album renamed successfully", "album_key", albumKey, "new_name", newName)
 	return nil
 }

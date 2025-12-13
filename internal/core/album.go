@@ -58,20 +58,20 @@ func (a *Api) CreateAlbum(albumName string, mediaKeys []string) (string, error) 
 		return "", fmt.Errorf("album creation failed: invalid response structure")
 	}
 
-	albumMediaKey := response.GetField1().GetAlbumMediaKey()
-	if albumMediaKey == "" {
-		return "", fmt.Errorf("album creation failed: no album media key returned")
+	albumKey := response.GetField1().GetAlbumKey()
+	if albumKey == "" {
+		return "", fmt.Errorf("album creation failed: no album key returned")
 	}
 
-	return albumMediaKey, nil
+	return albumKey, nil
 }
 
 // AddMediaToAlbum adds media items to an existing album
-func (a *Api) AddMediaToAlbum(albumMediaKey string, mediaKeys []string) error {
+func (a *Api) AddMediaToAlbum(albumKey string, mediaKeys []string) error {
 	requestBody := pb.AddMediaToAlbum{
-		MediaKeys:     mediaKeys,
-		AlbumMediaKey: albumMediaKey,
-		Field5:        &pb.AddMediaToAlbum_Field5Type{Field1: 2},
+		MediaKeys: mediaKeys,
+		AlbumKey:  albumKey,
+		Field5:    &pb.AddMediaToAlbum_Field5Type{Field1: 2},
 		DeviceInfo: &pb.AddMediaToAlbum_DeviceInfo{
 			Model:             a.Model,
 			Make:              a.Make,
@@ -90,10 +90,10 @@ func (a *Api) AddMediaToAlbum(albumMediaKey string, mediaKeys []string) error {
 	)
 }
 
-// DeleteAlbum deletes an album by its media key
-func (a *Api) DeleteAlbum(albumMediaKey string) error {
+// DeleteAlbum deletes an album by its key
+func (a *Api) DeleteAlbum(albumKey string) error {
 	requestBody := pb.DeleteAlbum{
-		AlbumMediaKey: albumMediaKey,
+		AlbumKey: albumKey,
 	}
 
 	return a.DoProtoRequest(
@@ -107,11 +107,11 @@ func (a *Api) DeleteAlbum(albumMediaKey string) error {
 }
 
 // RenameAlbum renames an album
-func (a *Api) RenameAlbum(albumMediaKey string, newName string) error {
+func (a *Api) RenameAlbum(albumKey string, newName string) error {
 	requestBody := pb.RenameAlbum{
-		AlbumMediaKey: albumMediaKey,
-		NewName:       newName,
-		Field3:        1,
+		AlbumKey: albumKey,
+		NewName:  newName,
+		Field3:   1,
 	}
 
 	return a.DoProtoRequest(

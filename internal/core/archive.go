@@ -8,23 +8,24 @@ import (
 // itemKeys can be either mediaKeys or dedupKeys (URL-safe base64 encoded SHA1 hashes)
 // isArchived: true = archive, false = unarchive
 func (a *Api) SetArchived(itemKeys []string, isArchived bool) error {
-	// Action map: true (archive) = 1, false (unarchive) = 2
-	var action int64 = 2
+	var actionType pb.ArchiveActionType
 	if isArchived {
-		action = 1
+		actionType = pb.ArchiveActionType_ARCHIVE
+	} else {
+		actionType = pb.ArchiveActionType_UNARCHIVE
 	}
 
-	items := make([]*pb.SetArchived_ArchivedItem, len(itemKeys))
+	items := make([]*pb.ArchiveItems_Item, len(itemKeys))
 	for i, key := range itemKeys {
-		items[i] = &pb.SetArchived_ArchivedItem{
+		items[i] = &pb.ArchiveItems_Item{
 			ItemKey: key,
-			Action: &pb.SetArchived_ArchiveAction{
-				Action: action,
+			Action: &pb.ArchiveItems_Action{
+				Action: actionType,
 			},
 		}
 	}
 
-	requestBody := pb.SetArchived{
+	requestBody := pb.ArchiveItems{
 		Items:  items,
 		Field3: 1,
 	}

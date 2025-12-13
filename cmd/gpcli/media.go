@@ -57,8 +57,29 @@ func archiveAction(ctx context.Context, cmd *cli.Command) error {
 	}
 	cfg := cfgManager.GetConfig()
 
-	input := cmd.StringArg("input")
 	unarchive := cmd.Bool("unarchive")
+
+	// Collect inputs from both command-line args and file
+	var inputs []string
+
+	// Get all arguments
+	allArgs := cmd.Args().Slice()
+	if len(allArgs) > 0 {
+		inputs = append(inputs, allArgs...)
+	}
+
+	// Get items from file if --from-file is provided
+	if fromFile := cmd.String("from-file"); fromFile != "" {
+		fileInputs, err := readLinesFromFile(fromFile)
+		if err != nil {
+			return err
+		}
+		inputs = append(inputs, fileInputs...)
+	}
+
+	if len(inputs) == 0 {
+		return fmt.Errorf("at least one item is required (provide via command-line or --from-file)")
+	}
 
 	authData := getAuthData(cfg)
 	if authData == "" {
@@ -73,22 +94,28 @@ func archiveAction(ctx context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("failed to create API client: %w", err)
 	}
 
-	itemKey, err := apiClient.ResolveItemKey(ctx, input)
-	if err != nil {
-		return err
+	logger.Info("resolving items", "count", len(inputs))
+	itemKeys := make([]string, 0, len(inputs))
+	for _, input := range inputs {
+		itemKey, err := apiClient.ResolveItemKey(ctx, input)
+		if err != nil {
+			return fmt.Errorf("failed to resolve item key for %s: %w", input, err)
+		}
+		itemKeys = append(itemKeys, itemKey)
 	}
 
 	isArchived := !unarchive
 	if isArchived {
-		logger.Info("archiving", "item_key", itemKey)
+		logger.Info("archiving items", "count", len(itemKeys))
 	} else {
-		logger.Info("unarchiving", "item_key", itemKey)
+		logger.Info("unarchiving items", "count", len(itemKeys))
 	}
 
-	if err := apiClient.SetArchived([]string{itemKey}, isArchived); err != nil {
+	if err := apiClient.SetArchived(itemKeys, isArchived); err != nil {
 		return fmt.Errorf("failed to set archived status: %w", err)
 	}
 
+	logger.Info("successfully updated archive status", "count", len(itemKeys))
 	return nil
 }
 

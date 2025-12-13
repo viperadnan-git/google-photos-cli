@@ -1,0 +1,23 @@
+syntax = "proto3";
+option go_package = "github.com/viperadnan-git/go-gpm/internal/pb";
+
+enum ArchiveActionType {
+  ARCHIVE_ACTION_UNSPECIFIED = 0;  // Required for proto3, not used
+  ARCHIVE = 1;
+  UNARCHIVE = 2;
+}
+
+// ArchiveItems is used to archive or unarchive media items
+message ArchiveItems {
+  repeated Item items = 1;
+  int64 field3 = 3; // constant: 1
+
+  message Item {
+    string item_key = 1; // mediaKey or dedupKey (URL-safe base64 encoded SHA1 hash)
+    Action action = 2;
+  }
+
+  message Action {
+    ArchiveActionType action = 1;
+  }
+}

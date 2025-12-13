@@ -160,7 +160,7 @@ func (x *CreateAlbumResponse) GetField1() *CreateAlbumResponse_Field1Type {
 type AddMediaToAlbum struct {
 	state         protoimpl.MessageState      `protogen:"open.v1"`
 	MediaKeys     []string                    `protobuf:"bytes,1,rep,name=media_keys,json=mediaKeys,proto3" json:"media_keys,omitempty"`
-	AlbumMediaKey string                      `protobuf:"bytes,2,opt,name=album_media_key,json=albumMediaKey,proto3" json:"album_media_key,omitempty"`
+	AlbumKey      string                      `protobuf:"bytes,2,opt,name=album_key,json=albumKey,proto3" json:"album_key,omitempty"`
 	Field5        *AddMediaToAlbum_Field5Type `protobuf:"bytes,5,opt,name=field5,proto3" json:"field5,omitempty"`
 	DeviceInfo    *AddMediaToAlbum_DeviceInfo `protobuf:"bytes,6,opt,name=device_info,json=deviceInfo,proto3" json:"device_info,omitempty"`
 	Timestamp     int64                       `protobuf:"varint,7,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
@@ -205,9 +205,9 @@ func (x *AddMediaToAlbum) GetMediaKeys() []string {
 	return nil
 }
 
-func (x *AddMediaToAlbum) GetAlbumMediaKey() string {
+func (x *AddMediaToAlbum) GetAlbumKey() string {
 	if x != nil {
-		return x.AlbumMediaKey
+		return x.AlbumKey
 	}
 	return ""
 }
@@ -235,7 +235,7 @@ func (x *AddMediaToAlbum) GetTimestamp() int64 {
 
 type DeleteAlbum struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	AlbumMediaKey string                 `protobuf:"bytes,1,opt,name=album_media_key,json=albumMediaKey,proto3" json:"album_media_key,omitempty"`
+	AlbumKey      string                 `protobuf:"bytes,1,opt,name=album_key,json=albumKey,proto3" json:"album_key,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -270,16 +270,16 @@ func (*DeleteAlbum) Descriptor() ([]byte, []int) {
 	return file___proto_AlbumAction_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *DeleteAlbum) GetAlbumMediaKey() string {
+func (x *DeleteAlbum) GetAlbumKey() string {
 	if x != nil {
-		return x.AlbumMediaKey
+		return x.AlbumKey
 	}
 	return ""
 }
 
 type RenameAlbum struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	AlbumMediaKey string                 `protobuf:"bytes,1,opt,name=album_media_key,json=albumMediaKey,proto3" json:"album_media_key,omitempty"`
+	AlbumKey      string                 `protobuf:"bytes,1,opt,name=album_key,json=albumKey,proto3" json:"album_key,omitempty"`
 	NewName       string                 `protobuf:"bytes,2,opt,name=new_name,json=newName,proto3" json:"new_name,omitempty"`
 	Field3        int64                  `protobuf:"varint,3,opt,name=field3,proto3" json:"field3,omitempty"` // constant 1
 	unknownFields protoimpl.UnknownFields
@@ -316,9 +316,9 @@ func (*RenameAlbum) Descriptor() ([]byte, []int) {
 	return file___proto_AlbumAction_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *RenameAlbum) GetAlbumMediaKey() string {
+func (x *RenameAlbum) GetAlbumKey() string {
 	if x != nil {
-		return x.AlbumMediaKey
+		return x.AlbumKey
 	}
 	return ""
 }
@@ -567,7 +567,7 @@ func (x *CreateAlbum_MediaKeyRef_MediaKeyInner) GetMediaKey() string {
 
 type CreateAlbumResponse_Field1Type struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	AlbumMediaKey string                 `protobuf:"bytes,1,opt,name=album_media_key,json=albumMediaKey,proto3" json:"album_media_key,omitempty"`
+	AlbumKey      string                 `protobuf:"bytes,1,opt,name=album_key,json=albumKey,proto3" json:"album_key,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -602,9 +602,9 @@ func (*CreateAlbumResponse_Field1Type) Descriptor() ([]byte, []int) {
 	return file___proto_AlbumAction_proto_rawDescGZIP(), []int{1, 0}
 }
 
-func (x *CreateAlbumResponse_Field1Type) GetAlbumMediaKey() string {
+func (x *CreateAlbumResponse_Field1Type) GetAlbumKey() string {
 	if x != nil {
-		return x.AlbumMediaKey
+		return x.AlbumKey
 	}
 	return ""
 }
@@ -742,16 +742,16 @@ const file___proto_AlbumAction_proto_rawDesc = "" +
 	"DeviceInfo\x12\x14\n" +
 	"\x05model\x18\x03 \x01(\tR\x05model\x12\x12\n" +
 	"\x04make\x18\x04 \x01(\tR\x04make\x12.\n" +
-	"\x13android_api_version\x18\x05 \x01(\x03R\x11androidApiVersion\"\x84\x01\n" +
+	"\x13android_api_version\x18\x05 \x01(\x03R\x11androidApiVersion\"y\n" +
 	"\x13CreateAlbumResponse\x127\n" +
-	"\x06field1\x18\x01 \x01(\v2\x1f.CreateAlbumResponse.Field1TypeR\x06field1\x1a4\n" +
+	"\x06field1\x18\x01 \x01(\v2\x1f.CreateAlbumResponse.Field1TypeR\x06field1\x1a)\n" +
 	"\n" +
-	"Field1Type\x12&\n" +
-	"\x0falbum_media_key\x18\x01 \x01(\tR\ralbumMediaKey\"\xf7\x02\n" +
+	"Field1Type\x12\x1b\n" +
+	"\talbum_key\x18\x01 \x01(\tR\balbumKey\"\xec\x02\n" +
 	"\x0fAddMediaToAlbum\x12\x1d\n" +
 	"\n" +
-	"media_keys\x18\x01 \x03(\tR\tmediaKeys\x12&\n" +
-	"\x0falbum_media_key\x18\x02 \x01(\tR\ralbumMediaKey\x123\n" +
+	"media_keys\x18\x01 \x03(\tR\tmediaKeys\x12\x1b\n" +
+	"\talbum_key\x18\x02 \x01(\tR\balbumKey\x123\n" +
 	"\x06field5\x18\x05 \x01(\v2\x1b.AddMediaToAlbum.Field5TypeR\x06field5\x12<\n" +
 	"\vdevice_info\x18\x06 \x01(\v2\x1b.AddMediaToAlbum.DeviceInfoR\n" +
 	"deviceInfo\x12\x1c\n" +
@@ -763,11 +763,11 @@ const file___proto_AlbumAction_proto_rawDesc = "" +
 	"DeviceInfo\x12\x14\n" +
 	"\x05model\x18\x03 \x01(\tR\x05model\x12\x12\n" +
 	"\x04make\x18\x04 \x01(\tR\x04make\x12.\n" +
-	"\x13android_api_version\x18\x05 \x01(\x03R\x11androidApiVersion\"5\n" +
-	"\vDeleteAlbum\x12&\n" +
-	"\x0falbum_media_key\x18\x01 \x01(\tR\ralbumMediaKey\"h\n" +
-	"\vRenameAlbum\x12&\n" +
-	"\x0falbum_media_key\x18\x01 \x01(\tR\ralbumMediaKey\x12\x19\n" +
+	"\x13android_api_version\x18\x05 \x01(\x03R\x11androidApiVersion\"*\n" +
+	"\vDeleteAlbum\x12\x1b\n" +
+	"\talbum_key\x18\x01 \x01(\tR\balbumKey\"]\n" +
+	"\vRenameAlbum\x12\x1b\n" +
+	"\talbum_key\x18\x01 \x01(\tR\balbumKey\x12\x19\n" +
 	"\bnew_name\x18\x02 \x01(\tR\anewName\x12\x16\n" +
 	"\x06field3\x18\x03 \x01(\x03R\x06field3B.Z,github.com/viperadnan-git/go-gpm/internal/pbb\x06proto3"
 

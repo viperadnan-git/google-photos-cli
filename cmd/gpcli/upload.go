@@ -117,14 +117,14 @@ func uploadAction(ctx context.Context, cmd *cli.Command) error {
 		const batchSize = 500
 		firstBatchEnd := min(batchSize, len(successfulMediaKeys))
 
-		albumMediaKey, err := api.CreateAlbum(albumName, successfulMediaKeys[:firstBatchEnd])
+		albumKey, err := api.CreateAlbum(albumName, successfulMediaKeys[:firstBatchEnd])
 		if err != nil {
 			return fmt.Errorf("failed to create album: %w", err)
 		}
 
 		for i := batchSize; i < len(successfulMediaKeys); i += batchSize {
 			end := min(i+batchSize, len(successfulMediaKeys))
-			if err = api.AddMediaToAlbum(albumMediaKey, successfulMediaKeys[i:end]); err != nil {
+			if err = api.AddMediaToAlbum(albumKey, successfulMediaKeys[i:end]); err != nil {
 				logger.Warn("failed to add batch to album", "error", err)
 			}
 		}

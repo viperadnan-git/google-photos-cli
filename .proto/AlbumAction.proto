@@ -28,13 +28,13 @@ message CreateAlbum {
 message CreateAlbumResponse {
   Field1Type field1 = 1;
   message Field1Type {
-    string album_media_key = 1;
+    string album_key = 1;
   }
 }
 
 message AddMediaToAlbum {
   repeated string media_keys = 1;
-  string album_media_key = 2;
+  string album_key = 2;
   Field5Type field5 = 5;
   DeviceInfo device_info = 6;
   int64 timestamp = 7;
@@ -48,11 +48,11 @@ message AddMediaToAlbum {
 }
 
 message DeleteAlbum {
-  string album_media_key = 1;
+  string album_key = 1;
 }
 
 message RenameAlbum {
-  string album_media_key = 1;
+  string album_key = 1;
   string new_name = 2;
   int64 field3 = 3;  // constant 1
 }
