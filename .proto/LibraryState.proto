@@ -1,0 +1,235 @@
+syntax = "proto3";
+package gpm;
+option go_package = "github.com/viperadnan-git/go-gpm/internal/pb";
+
+// LibraryStateResponse is the response from library state APIs
+message LibraryStateResponse {
+  LibraryStateData data = 1;  // Main response data
+  // Field 2: Additional metadata (not parsed)
+}
+
+// LibraryStateData contains the main library state information
+message LibraryStateData {
+  string next_page_token = 1;        // Pagination token for next page
+  repeated MediaItemData media_items = 2;  // Media items in library
+  repeated AlbumData albums = 3;     // Albums/collections
+  string state_token = 6;            // State token for incremental sync
+  repeated DeletionData deletions = 9;  // Deleted items
+  // repeated SmartCollectionData smart_collections = 10;  // Auto-generated collections (Screenshots, Videos, etc.)
+}
+
+// MediaItemData represents a media item (photo/video)
+message MediaItemData {
+  string media_key = 1;              // Unique identifier for the media item
+  MediaMetadata metadata = 2;        // Media metadata
+  MediaTypeInfo type_info = 5;       // Type and format information
+  MediaKeyInfo key_info = 6;         // Alternative key information
+  // Field 17: Location data (not parsed)
+}
+
+// MediaMetadata contains metadata for a media item
+message MediaMetadata {
+  CollectionInfo collection = 1;     // Collection/album association
+  // Field 3: Caption (string, position varies)
+  string file_name = 4;              // Original filename
+  repeated PropertyInfo properties = 5;  // Properties list (property 27 = non-canonical)
+  // Field 6: Unknown
+  uint64 utc_timestamp = 7;          // Capture timestamp in milliseconds
+  uint64 timezone_offset = 8;        // Timezone offset in milliseconds
+  uint64 server_creation_timestamp = 9;  // Server upload timestamp
+  uint64 size_bytes = 10;            // File size in bytes
+  uint64 upload_status = 11;         // Upload status
+  // Field 13: Hash data
+  // Field 16: Trash info (field 16.3 = trash_timestamp)
+  DedupInfo dedup = 21;              // Deduplication key info
+  uint64 content_version = 26;       // Content version number
+  ArchiveInfo archive = 29;          // Archive status
+  // Field 30: Origin info (1=self, 3=partner, 4=shared)
+  FavoriteInfo favorite = 31;        // Favorite status
+  QuotaInfo quota = 35;              // Storage quota info
+  LockInfo lock = 39;                // Lock status
+}
+
+// CollectionInfo links media to a collection/album
+message CollectionInfo {
+  string collection_id = 1;          // Collection/album identifier
+}
+
+// PropertyInfo represents a property marker
+message PropertyInfo {
+  uint64 property_id = 1;            // Property ID (27 = non-canonical marker)
+}
+
+// DedupInfo contains deduplication information
+message DedupInfo {
+  string dedup_key = 1;              // Deduplication key (same for duplicates)
+}
+
+// ArchiveInfo contains archive status
+message ArchiveInfo {
+  uint64 status = 1;                 // 1=archived, 2=not archived
+}
+
+// FavoriteInfo contains favorite status
+message FavoriteInfo {
+  uint64 status = 1;                 // 1=favorite, 2=not favorite
+}
+
+// QuotaInfo contains storage quota information
+message QuotaInfo {
+  // Field 1: Unknown
+  uint64 quota_charged_bytes = 2;    // Bytes charged against quota
+  uint64 quality_type = 3;           // 2=original quality
+}
+
+// LockInfo contains lock status
+message LockInfo {
+  uint64 status = 1;                 // 1=locked
+}
+
+// MediaTypeInfo contains type and format details
+message MediaTypeInfo {
+  uint64 media_type = 1;             // 1=photo, 2=video
+  PhotoInfo photo = 2;               // Photo-specific info
+  VideoInfo video = 3;               // Video-specific info
+  // Field 5: Micro video info
+}
+
+// PhotoInfo contains photo-specific information
+message PhotoInfo {
+  PhotoDetails details = 1;          // Photo details
+  // Field 4: Edited indicator
+}
+
+// PhotoDetails contains photo dimension and URL info
+message PhotoDetails {
+  string thumbnail_url = 1;          // Thumbnail URL
+  // Fields 2-8: Various metadata
+  PhotoDimensions dimensions = 9;    // Width/height
+}
+
+// PhotoDimensions contains image dimensions
+message PhotoDimensions {
+  uint64 width = 1;
+  uint64 height = 2;
+  // Field 5: Camera info (make, model, aperture, etc.)
+}
+
+// VideoInfo contains video-specific information
+message VideoInfo {
+  // Field 1: Unknown
+  VideoThumbnail thumbnail = 2;      // Thumbnail info
+  // Field 3: Unknown
+  VideoDetails details = 4;          // Duration and dimensions
+  string download_url = 5;           // Download URL
+  // Field 6: Frame rate info
+}
+
+// VideoThumbnail contains video thumbnail URL
+message VideoThumbnail {
+  string url = 1;
+}
+
+// VideoDetails contains video duration and dimensions
+message VideoDetails {
+  uint64 duration_ms = 1;            // Duration in milliseconds
+  // Fields 2-3: Unknown
+  uint64 width = 4;
+  uint64 height = 5;
+}
+
+// MediaKeyInfo contains alternative media key
+message MediaKeyInfo {
+  string media_key = 1;
+}
+
+// AlbumData represents an album/collection
+message AlbumData {
+  string album_key = 1;              // Album's unique key
+  AlbumMetadata metadata = 2;        // Album metadata
+  // Field 4: Owner info
+  // Field 5: Cover info
+  AlbumSortInfo sort_info = 19;      // Sort order info
+}
+
+// AlbumMetadata contains album metadata
+message AlbumMetadata {
+  // Field 1: Unknown
+  // Field 3: Cover item key info
+  // Field 4: Cover item key info (duplicate)
+  string title = 5;                  // Album title
+  // Field 7: Total items (always 0 from server, calculate from media items)
+  uint64 album_type = 8;             // 1=user album
+  // Field 10: Time range info
+  // Field 11: Properties
+  // Field 12: Unknown
+  // Field 13: Unknown
+  // Field 14: Unknown
+  // Field 15: Cover URL
+  CoverItemInfo cover_item = 17;     // Cover media item
+  // Field 18: Description
+}
+
+// CoverItemInfo contains album cover information
+message CoverItemInfo {
+  string media_key = 1;              // Cover item's media key
+}
+
+// AlbumSortInfo contains album sort order
+message AlbumSortInfo {
+  uint64 sort_order = 1;             // Sort order value
+  uint64 is_custom_ordered = 2;      // 1=custom ordered
+}
+
+// DeletionData represents a deleted item marker
+message DeletionData {
+  DeletionInfo info = 1;
+}
+
+// DeletionInfo contains deletion details
+message DeletionInfo {
+  uint64 deletion_type = 1;          // 1=media item deletion
+  DeletedMediaInfo media = 2;        // Deleted media info (when type=1)
+  // Field 5: Collection deletion (when type=4)
+  // Field 7: Other deletion type (when type=6)
+}
+
+// DeletedMediaInfo contains deleted media key
+message DeletedMediaInfo {
+  string media_key = 1;
+}
+
+// SmartCollectionData represents an auto-generated collection (kept for future use)
+// message SmartCollectionData {
+//   SmartCollectionKey key = 1;        // Collection key info
+//   SmartCollectionMetadata metadata = 2;  // Collection metadata
+//   uint64 collection_type = 3;        // Collection type (6=Videos, 7=category)
+// }
+
+// SmartCollectionKey contains smart collection key
+// message SmartCollectionKey {
+//   string collection_key = 1;
+// }
+
+// SmartCollectionMetadata contains smart collection metadata
+// message SmartCollectionMetadata {
+//   // Fields 1-5: Unknown
+//   string name = 6;                   // Collection name
+//   SmartCollectionCover cover = 7;    // Cover info
+// }
+
+// SmartCollectionCover contains cover information
+// message SmartCollectionCover {
+//   SmartCollectionCoverKey cover_key = 1;
+//   SmartCollectionCoverUrl cover_url = 2;
+// }
+
+// SmartCollectionCoverKey contains cover media key
+// message SmartCollectionCoverKey {
+//   string media_key = 1;
+// }
+
+// SmartCollectionCoverUrl contains cover URL
+// message SmartCollectionCoverUrl {
+//   string url = 1;
+// }

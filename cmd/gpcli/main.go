@@ -405,6 +405,30 @@ func main() {
 				},
 				Action: upgradeAction,
 			},
+			{
+				Name:   "library-test",
+				Usage:  "Test library state API (temporary command for development)",
+				Hidden: true,
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:  "state-token",
+						Usage: "State token from previous library state call",
+					},
+					&cli.StringFlag{
+						Name:  "page-token",
+						Usage: "Page token for pagination",
+					},
+					&cli.BoolFlag{
+						Name:  "raw",
+						Usage: "Print raw hex dump instead of parsed JSON",
+					},
+					&cli.BoolFlag{
+						Name:  "raw-json",
+						Usage: "Print raw protobuf as JSON (for debugging structure)",
+					},
+				},
+				Action: libraryTestAction,
+			},
 		},
 	}
 
