@@ -21,6 +21,142 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type CreateAlbum struct {
+	state         protoimpl.MessageState     `protogen:"open.v1"`
+	AlbumName     string                     `protobuf:"bytes,1,opt,name=album_name,json=albumName,proto3" json:"album_name,omitempty"`
+	Timestamp     int64                      `protobuf:"varint,2,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	Field3        int64                      `protobuf:"varint,3,opt,name=field3,proto3" json:"field3,omitempty"`
+	MediaKeys     []*CreateAlbum_MediaKeyRef `protobuf:"bytes,4,rep,name=media_keys,json=mediaKeys,proto3" json:"media_keys,omitempty"`
+	Field6        *CreateAlbum_Field6Type    `protobuf:"bytes,6,opt,name=field6,proto3" json:"field6,omitempty"`
+	Field7        *CreateAlbum_Field7Type    `protobuf:"bytes,7,opt,name=field7,proto3" json:"field7,omitempty"`
+	DeviceInfo    *CreateAlbum_DeviceInfo    `protobuf:"bytes,8,opt,name=device_info,json=deviceInfo,proto3" json:"device_info,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateAlbum) Reset() {
+	*x = CreateAlbum{}
+	mi := &file___proto_AlbumAction_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateAlbum) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateAlbum) ProtoMessage() {}
+
+func (x *CreateAlbum) ProtoReflect() protoreflect.Message {
+	mi := &file___proto_AlbumAction_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateAlbum.ProtoReflect.Descriptor instead.
+func (*CreateAlbum) Descriptor() ([]byte, []int) {
+	return file___proto_AlbumAction_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *CreateAlbum) GetAlbumName() string {
+	if x != nil {
+		return x.AlbumName
+	}
+	return ""
+}
+
+func (x *CreateAlbum) GetTimestamp() int64 {
+	if x != nil {
+		return x.Timestamp
+	}
+	return 0
+}
+
+func (x *CreateAlbum) GetField3() int64 {
+	if x != nil {
+		return x.Field3
+	}
+	return 0
+}
+
+func (x *CreateAlbum) GetMediaKeys() []*CreateAlbum_MediaKeyRef {
+	if x != nil {
+		return x.MediaKeys
+	}
+	return nil
+}
+
+func (x *CreateAlbum) GetField6() *CreateAlbum_Field6Type {
+	if x != nil {
+		return x.Field6
+	}
+	return nil
+}
+
+func (x *CreateAlbum) GetField7() *CreateAlbum_Field7Type {
+	if x != nil {
+		return x.Field7
+	}
+	return nil
+}
+
+func (x *CreateAlbum) GetDeviceInfo() *CreateAlbum_DeviceInfo {
+	if x != nil {
+		return x.DeviceInfo
+	}
+	return nil
+}
+
+type CreateAlbumResponse struct {
+	state         protoimpl.MessageState          `protogen:"open.v1"`
+	Field1        *CreateAlbumResponse_Field1Type `protobuf:"bytes,1,opt,name=field1,proto3" json:"field1,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateAlbumResponse) Reset() {
+	*x = CreateAlbumResponse{}
+	mi := &file___proto_AlbumAction_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateAlbumResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateAlbumResponse) ProtoMessage() {}
+
+func (x *CreateAlbumResponse) ProtoReflect() protoreflect.Message {
+	mi := &file___proto_AlbumAction_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateAlbumResponse.ProtoReflect.Descriptor instead.
+func (*CreateAlbumResponse) Descriptor() ([]byte, []int) {
+	return file___proto_AlbumAction_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *CreateAlbumResponse) GetField1() *CreateAlbumResponse_Field1Type {
+	if x != nil {
+		return x.Field1
+	}
+	return nil
+}
+
 type AddMediaToAlbum struct {
 	state         protoimpl.MessageState      `protogen:"open.v1"`
 	MediaKeys     []string                    `protobuf:"bytes,1,rep,name=media_keys,json=mediaKeys,proto3" json:"media_keys,omitempty"`
@@ -34,7 +170,7 @@ type AddMediaToAlbum struct {
 
 func (x *AddMediaToAlbum) Reset() {
 	*x = AddMediaToAlbum{}
-	mi := &file___proto_AlbumAction_proto_msgTypes[0]
+	mi := &file___proto_AlbumAction_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -46,7 +182,7 @@ func (x *AddMediaToAlbum) String() string {
 func (*AddMediaToAlbum) ProtoMessage() {}
 
 func (x *AddMediaToAlbum) ProtoReflect() protoreflect.Message {
-	mi := &file___proto_AlbumAction_proto_msgTypes[0]
+	mi := &file___proto_AlbumAction_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -59,7 +195,7 @@ func (x *AddMediaToAlbum) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddMediaToAlbum.ProtoReflect.Descriptor instead.
 func (*AddMediaToAlbum) Descriptor() ([]byte, []int) {
-	return file___proto_AlbumAction_proto_rawDescGZIP(), []int{0}
+	return file___proto_AlbumAction_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *AddMediaToAlbum) GetMediaKeys() []string {
@@ -106,7 +242,7 @@ type DeleteAlbum struct {
 
 func (x *DeleteAlbum) Reset() {
 	*x = DeleteAlbum{}
-	mi := &file___proto_AlbumAction_proto_msgTypes[1]
+	mi := &file___proto_AlbumAction_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -118,7 +254,7 @@ func (x *DeleteAlbum) String() string {
 func (*DeleteAlbum) ProtoMessage() {}
 
 func (x *DeleteAlbum) ProtoReflect() protoreflect.Message {
-	mi := &file___proto_AlbumAction_proto_msgTypes[1]
+	mi := &file___proto_AlbumAction_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -131,10 +267,342 @@ func (x *DeleteAlbum) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteAlbum.ProtoReflect.Descriptor instead.
 func (*DeleteAlbum) Descriptor() ([]byte, []int) {
-	return file___proto_AlbumAction_proto_rawDescGZIP(), []int{1}
+	return file___proto_AlbumAction_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *DeleteAlbum) GetAlbumMediaKey() string {
+	if x != nil {
+		return x.AlbumMediaKey
+	}
+	return ""
+}
+
+type RenameAlbum struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AlbumMediaKey string                 `protobuf:"bytes,1,opt,name=album_media_key,json=albumMediaKey,proto3" json:"album_media_key,omitempty"`
+	NewName       string                 `protobuf:"bytes,2,opt,name=new_name,json=newName,proto3" json:"new_name,omitempty"`
+	Field3        int64                  `protobuf:"varint,3,opt,name=field3,proto3" json:"field3,omitempty"` // constant 1
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RenameAlbum) Reset() {
+	*x = RenameAlbum{}
+	mi := &file___proto_AlbumAction_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RenameAlbum) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RenameAlbum) ProtoMessage() {}
+
+func (x *RenameAlbum) ProtoReflect() protoreflect.Message {
+	mi := &file___proto_AlbumAction_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RenameAlbum.ProtoReflect.Descriptor instead.
+func (*RenameAlbum) Descriptor() ([]byte, []int) {
+	return file___proto_AlbumAction_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *RenameAlbum) GetAlbumMediaKey() string {
+	if x != nil {
+		return x.AlbumMediaKey
+	}
+	return ""
+}
+
+func (x *RenameAlbum) GetNewName() string {
+	if x != nil {
+		return x.NewName
+	}
+	return ""
+}
+
+func (x *RenameAlbum) GetField3() int64 {
+	if x != nil {
+		return x.Field3
+	}
+	return 0
+}
+
+type CreateAlbum_MediaKeyRef struct {
+	state         protoimpl.MessageState                 `protogen:"open.v1"`
+	Field1        *CreateAlbum_MediaKeyRef_MediaKeyInner `protobuf:"bytes,1,opt,name=field1,proto3" json:"field1,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateAlbum_MediaKeyRef) Reset() {
+	*x = CreateAlbum_MediaKeyRef{}
+	mi := &file___proto_AlbumAction_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateAlbum_MediaKeyRef) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateAlbum_MediaKeyRef) ProtoMessage() {}
+
+func (x *CreateAlbum_MediaKeyRef) ProtoReflect() protoreflect.Message {
+	mi := &file___proto_AlbumAction_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateAlbum_MediaKeyRef.ProtoReflect.Descriptor instead.
+func (*CreateAlbum_MediaKeyRef) Descriptor() ([]byte, []int) {
+	return file___proto_AlbumAction_proto_rawDescGZIP(), []int{0, 0}
+}
+
+func (x *CreateAlbum_MediaKeyRef) GetField1() *CreateAlbum_MediaKeyRef_MediaKeyInner {
+	if x != nil {
+		return x.Field1
+	}
+	return nil
+}
+
+type CreateAlbum_Field6Type struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateAlbum_Field6Type) Reset() {
+	*x = CreateAlbum_Field6Type{}
+	mi := &file___proto_AlbumAction_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateAlbum_Field6Type) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateAlbum_Field6Type) ProtoMessage() {}
+
+func (x *CreateAlbum_Field6Type) ProtoReflect() protoreflect.Message {
+	mi := &file___proto_AlbumAction_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateAlbum_Field6Type.ProtoReflect.Descriptor instead.
+func (*CreateAlbum_Field6Type) Descriptor() ([]byte, []int) {
+	return file___proto_AlbumAction_proto_rawDescGZIP(), []int{0, 1}
+}
+
+type CreateAlbum_Field7Type struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Field1        int64                  `protobuf:"varint,1,opt,name=field1,proto3" json:"field1,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateAlbum_Field7Type) Reset() {
+	*x = CreateAlbum_Field7Type{}
+	mi := &file___proto_AlbumAction_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateAlbum_Field7Type) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateAlbum_Field7Type) ProtoMessage() {}
+
+func (x *CreateAlbum_Field7Type) ProtoReflect() protoreflect.Message {
+	mi := &file___proto_AlbumAction_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateAlbum_Field7Type.ProtoReflect.Descriptor instead.
+func (*CreateAlbum_Field7Type) Descriptor() ([]byte, []int) {
+	return file___proto_AlbumAction_proto_rawDescGZIP(), []int{0, 2}
+}
+
+func (x *CreateAlbum_Field7Type) GetField1() int64 {
+	if x != nil {
+		return x.Field1
+	}
+	return 0
+}
+
+type CreateAlbum_DeviceInfo struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Model             string                 `protobuf:"bytes,3,opt,name=model,proto3" json:"model,omitempty"`
+	Make              string                 `protobuf:"bytes,4,opt,name=make,proto3" json:"make,omitempty"`
+	AndroidApiVersion int64                  `protobuf:"varint,5,opt,name=android_api_version,json=androidApiVersion,proto3" json:"android_api_version,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *CreateAlbum_DeviceInfo) Reset() {
+	*x = CreateAlbum_DeviceInfo{}
+	mi := &file___proto_AlbumAction_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateAlbum_DeviceInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateAlbum_DeviceInfo) ProtoMessage() {}
+
+func (x *CreateAlbum_DeviceInfo) ProtoReflect() protoreflect.Message {
+	mi := &file___proto_AlbumAction_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateAlbum_DeviceInfo.ProtoReflect.Descriptor instead.
+func (*CreateAlbum_DeviceInfo) Descriptor() ([]byte, []int) {
+	return file___proto_AlbumAction_proto_rawDescGZIP(), []int{0, 3}
+}
+
+func (x *CreateAlbum_DeviceInfo) GetModel() string {
+	if x != nil {
+		return x.Model
+	}
+	return ""
+}
+
+func (x *CreateAlbum_DeviceInfo) GetMake() string {
+	if x != nil {
+		return x.Make
+	}
+	return ""
+}
+
+func (x *CreateAlbum_DeviceInfo) GetAndroidApiVersion() int64 {
+	if x != nil {
+		return x.AndroidApiVersion
+	}
+	return 0
+}
+
+type CreateAlbum_MediaKeyRef_MediaKeyInner struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	MediaKey      string                 `protobuf:"bytes,1,opt,name=media_key,json=mediaKey,proto3" json:"media_key,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateAlbum_MediaKeyRef_MediaKeyInner) Reset() {
+	*x = CreateAlbum_MediaKeyRef_MediaKeyInner{}
+	mi := &file___proto_AlbumAction_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateAlbum_MediaKeyRef_MediaKeyInner) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateAlbum_MediaKeyRef_MediaKeyInner) ProtoMessage() {}
+
+func (x *CreateAlbum_MediaKeyRef_MediaKeyInner) ProtoReflect() protoreflect.Message {
+	mi := &file___proto_AlbumAction_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateAlbum_MediaKeyRef_MediaKeyInner.ProtoReflect.Descriptor instead.
+func (*CreateAlbum_MediaKeyRef_MediaKeyInner) Descriptor() ([]byte, []int) {
+	return file___proto_AlbumAction_proto_rawDescGZIP(), []int{0, 0, 0}
+}
+
+func (x *CreateAlbum_MediaKeyRef_MediaKeyInner) GetMediaKey() string {
+	if x != nil {
+		return x.MediaKey
+	}
+	return ""
+}
+
+type CreateAlbumResponse_Field1Type struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AlbumMediaKey string                 `protobuf:"bytes,1,opt,name=album_media_key,json=albumMediaKey,proto3" json:"album_media_key,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateAlbumResponse_Field1Type) Reset() {
+	*x = CreateAlbumResponse_Field1Type{}
+	mi := &file___proto_AlbumAction_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateAlbumResponse_Field1Type) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateAlbumResponse_Field1Type) ProtoMessage() {}
+
+func (x *CreateAlbumResponse_Field1Type) ProtoReflect() protoreflect.Message {
+	mi := &file___proto_AlbumAction_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateAlbumResponse_Field1Type.ProtoReflect.Descriptor instead.
+func (*CreateAlbumResponse_Field1Type) Descriptor() ([]byte, []int) {
+	return file___proto_AlbumAction_proto_rawDescGZIP(), []int{1, 0}
+}
+
+func (x *CreateAlbumResponse_Field1Type) GetAlbumMediaKey() string {
 	if x != nil {
 		return x.AlbumMediaKey
 	}
@@ -150,7 +618,7 @@ type AddMediaToAlbum_Field5Type struct {
 
 func (x *AddMediaToAlbum_Field5Type) Reset() {
 	*x = AddMediaToAlbum_Field5Type{}
-	mi := &file___proto_AlbumAction_proto_msgTypes[2]
+	mi := &file___proto_AlbumAction_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -162,7 +630,7 @@ func (x *AddMediaToAlbum_Field5Type) String() string {
 func (*AddMediaToAlbum_Field5Type) ProtoMessage() {}
 
 func (x *AddMediaToAlbum_Field5Type) ProtoReflect() protoreflect.Message {
-	mi := &file___proto_AlbumAction_proto_msgTypes[2]
+	mi := &file___proto_AlbumAction_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -175,7 +643,7 @@ func (x *AddMediaToAlbum_Field5Type) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddMediaToAlbum_Field5Type.ProtoReflect.Descriptor instead.
 func (*AddMediaToAlbum_Field5Type) Descriptor() ([]byte, []int) {
-	return file___proto_AlbumAction_proto_rawDescGZIP(), []int{0, 0}
+	return file___proto_AlbumAction_proto_rawDescGZIP(), []int{2, 0}
 }
 
 func (x *AddMediaToAlbum_Field5Type) GetField1() int64 {
@@ -196,7 +664,7 @@ type AddMediaToAlbum_DeviceInfo struct {
 
 func (x *AddMediaToAlbum_DeviceInfo) Reset() {
 	*x = AddMediaToAlbum_DeviceInfo{}
-	mi := &file___proto_AlbumAction_proto_msgTypes[3]
+	mi := &file___proto_AlbumAction_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -208,7 +676,7 @@ func (x *AddMediaToAlbum_DeviceInfo) String() string {
 func (*AddMediaToAlbum_DeviceInfo) ProtoMessage() {}
 
 func (x *AddMediaToAlbum_DeviceInfo) ProtoReflect() protoreflect.Message {
-	mi := &file___proto_AlbumAction_proto_msgTypes[3]
+	mi := &file___proto_AlbumAction_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -221,7 +689,7 @@ func (x *AddMediaToAlbum_DeviceInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddMediaToAlbum_DeviceInfo.ProtoReflect.Descriptor instead.
 func (*AddMediaToAlbum_DeviceInfo) Descriptor() ([]byte, []int) {
-	return file___proto_AlbumAction_proto_rawDescGZIP(), []int{0, 1}
+	return file___proto_AlbumAction_proto_rawDescGZIP(), []int{2, 1}
 }
 
 func (x *AddMediaToAlbum_DeviceInfo) GetModel() string {
@@ -249,7 +717,37 @@ var File___proto_AlbumAction_proto protoreflect.FileDescriptor
 
 const file___proto_AlbumAction_proto_rawDesc = "" +
 	"\n" +
-	"\x18.proto/AlbumAction.proto\"\xf7\x02\n" +
+	"\x18.proto/AlbumAction.proto\"\xd0\x04\n" +
+	"\vCreateAlbum\x12\x1d\n" +
+	"\n" +
+	"album_name\x18\x01 \x01(\tR\talbumName\x12\x1c\n" +
+	"\ttimestamp\x18\x02 \x01(\x03R\ttimestamp\x12\x16\n" +
+	"\x06field3\x18\x03 \x01(\x03R\x06field3\x127\n" +
+	"\n" +
+	"media_keys\x18\x04 \x03(\v2\x18.CreateAlbum.MediaKeyRefR\tmediaKeys\x12/\n" +
+	"\x06field6\x18\x06 \x01(\v2\x17.CreateAlbum.Field6TypeR\x06field6\x12/\n" +
+	"\x06field7\x18\a \x01(\v2\x17.CreateAlbum.Field7TypeR\x06field7\x128\n" +
+	"\vdevice_info\x18\b \x01(\v2\x17.CreateAlbum.DeviceInfoR\n" +
+	"deviceInfo\x1a{\n" +
+	"\vMediaKeyRef\x12>\n" +
+	"\x06field1\x18\x01 \x01(\v2&.CreateAlbum.MediaKeyRef.MediaKeyInnerR\x06field1\x1a,\n" +
+	"\rMediaKeyInner\x12\x1b\n" +
+	"\tmedia_key\x18\x01 \x01(\tR\bmediaKey\x1a\f\n" +
+	"\n" +
+	"Field6Type\x1a$\n" +
+	"\n" +
+	"Field7Type\x12\x16\n" +
+	"\x06field1\x18\x01 \x01(\x03R\x06field1\x1af\n" +
+	"\n" +
+	"DeviceInfo\x12\x14\n" +
+	"\x05model\x18\x03 \x01(\tR\x05model\x12\x12\n" +
+	"\x04make\x18\x04 \x01(\tR\x04make\x12.\n" +
+	"\x13android_api_version\x18\x05 \x01(\x03R\x11androidApiVersion\"\x84\x01\n" +
+	"\x13CreateAlbumResponse\x127\n" +
+	"\x06field1\x18\x01 \x01(\v2\x1f.CreateAlbumResponse.Field1TypeR\x06field1\x1a4\n" +
+	"\n" +
+	"Field1Type\x12&\n" +
+	"\x0falbum_media_key\x18\x01 \x01(\tR\ralbumMediaKey\"\xf7\x02\n" +
 	"\x0fAddMediaToAlbum\x12\x1d\n" +
 	"\n" +
 	"media_keys\x18\x01 \x03(\tR\tmediaKeys\x12&\n" +
@@ -267,7 +765,11 @@ const file___proto_AlbumAction_proto_rawDesc = "" +
 	"\x04make\x18\x04 \x01(\tR\x04make\x12.\n" +
 	"\x13android_api_version\x18\x05 \x01(\x03R\x11androidApiVersion\"5\n" +
 	"\vDeleteAlbum\x12&\n" +
-	"\x0falbum_media_key\x18\x01 \x01(\tR\ralbumMediaKeyB.Z,github.com/viperadnan-git/go-gpm/internal/pbb\x06proto3"
+	"\x0falbum_media_key\x18\x01 \x01(\tR\ralbumMediaKey\"h\n" +
+	"\vRenameAlbum\x12&\n" +
+	"\x0falbum_media_key\x18\x01 \x01(\tR\ralbumMediaKey\x12\x19\n" +
+	"\bnew_name\x18\x02 \x01(\tR\anewName\x12\x16\n" +
+	"\x06field3\x18\x03 \x01(\x03R\x06field3B.Z,github.com/viperadnan-git/go-gpm/internal/pbb\x06proto3"
 
 var (
 	file___proto_AlbumAction_proto_rawDescOnce sync.Once
@@ -281,21 +783,36 @@ func file___proto_AlbumAction_proto_rawDescGZIP() []byte {
 	return file___proto_AlbumAction_proto_rawDescData
 }
 
-var file___proto_AlbumAction_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file___proto_AlbumAction_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file___proto_AlbumAction_proto_goTypes = []any{
-	(*AddMediaToAlbum)(nil),            // 0: AddMediaToAlbum
-	(*DeleteAlbum)(nil),                // 1: DeleteAlbum
-	(*AddMediaToAlbum_Field5Type)(nil), // 2: AddMediaToAlbum.Field5Type
-	(*AddMediaToAlbum_DeviceInfo)(nil), // 3: AddMediaToAlbum.DeviceInfo
+	(*CreateAlbum)(nil),                           // 0: CreateAlbum
+	(*CreateAlbumResponse)(nil),                   // 1: CreateAlbumResponse
+	(*AddMediaToAlbum)(nil),                       // 2: AddMediaToAlbum
+	(*DeleteAlbum)(nil),                           // 3: DeleteAlbum
+	(*RenameAlbum)(nil),                           // 4: RenameAlbum
+	(*CreateAlbum_MediaKeyRef)(nil),               // 5: CreateAlbum.MediaKeyRef
+	(*CreateAlbum_Field6Type)(nil),                // 6: CreateAlbum.Field6Type
+	(*CreateAlbum_Field7Type)(nil),                // 7: CreateAlbum.Field7Type
+	(*CreateAlbum_DeviceInfo)(nil),                // 8: CreateAlbum.DeviceInfo
+	(*CreateAlbum_MediaKeyRef_MediaKeyInner)(nil), // 9: CreateAlbum.MediaKeyRef.MediaKeyInner
+	(*CreateAlbumResponse_Field1Type)(nil),        // 10: CreateAlbumResponse.Field1Type
+	(*AddMediaToAlbum_Field5Type)(nil),            // 11: AddMediaToAlbum.Field5Type
+	(*AddMediaToAlbum_DeviceInfo)(nil),            // 12: AddMediaToAlbum.DeviceInfo
 }
 var file___proto_AlbumAction_proto_depIdxs = []int32{
-	2, // 0: AddMediaToAlbum.field5:type_name -> AddMediaToAlbum.Field5Type
-	3, // 1: AddMediaToAlbum.device_info:type_name -> AddMediaToAlbum.DeviceInfo
-	2, // [2:2] is the sub-list for method output_type
-	2, // [2:2] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	5,  // 0: CreateAlbum.media_keys:type_name -> CreateAlbum.MediaKeyRef
+	6,  // 1: CreateAlbum.field6:type_name -> CreateAlbum.Field6Type
+	7,  // 2: CreateAlbum.field7:type_name -> CreateAlbum.Field7Type
+	8,  // 3: CreateAlbum.device_info:type_name -> CreateAlbum.DeviceInfo
+	10, // 4: CreateAlbumResponse.field1:type_name -> CreateAlbumResponse.Field1Type
+	11, // 5: AddMediaToAlbum.field5:type_name -> AddMediaToAlbum.Field5Type
+	12, // 6: AddMediaToAlbum.device_info:type_name -> AddMediaToAlbum.DeviceInfo
+	9,  // 7: CreateAlbum.MediaKeyRef.field1:type_name -> CreateAlbum.MediaKeyRef.MediaKeyInner
+	8,  // [8:8] is the sub-list for method output_type
+	8,  // [8:8] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file___proto_AlbumAction_proto_init() }
@@ -309,7 +826,7 @@ func file___proto_AlbumAction_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file___proto_AlbumAction_proto_rawDesc), len(file___proto_AlbumAction_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

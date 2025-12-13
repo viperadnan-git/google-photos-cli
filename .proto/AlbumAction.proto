@@ -1,6 +1,37 @@
 syntax = "proto3";
 option go_package = "github.com/viperadnan-git/go-gpm/internal/pb";
 
+message CreateAlbum {
+  string album_name = 1;
+  int64 timestamp = 2;
+  int64 field3 = 3;
+  repeated MediaKeyRef media_keys = 4;
+  Field6Type field6 = 6;
+  Field7Type field7 = 7;
+  DeviceInfo device_info = 8;
+
+  message MediaKeyRef {
+    MediaKeyInner field1 = 1;
+    message MediaKeyInner {
+      string media_key = 1;
+    }
+  }
+  message Field6Type {}
+  message Field7Type { int64 field1 = 1; }
+  message DeviceInfo {
+    string model = 3;
+    string make = 4;
+    int64 android_api_version = 5;
+  }
+}
+
+message CreateAlbumResponse {
+  Field1Type field1 = 1;
+  message Field1Type {
+    string album_media_key = 1;
+  }
+}
+
 message AddMediaToAlbum {
   repeated string media_keys = 1;
   string album_media_key = 2;
@@ -18,4 +49,10 @@ message AddMediaToAlbum {
 
 message DeleteAlbum {
   string album_media_key = 1;
+}
+
+message RenameAlbum {
+  string album_media_key = 1;
+  string new_name = 2;
+  int64 field3 = 3;  // constant 1
 }

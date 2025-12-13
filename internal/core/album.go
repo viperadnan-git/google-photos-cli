@@ -105,3 +105,21 @@ func (a *Api) DeleteAlbum(albumMediaKey string) error {
 		WithStatusCheck(),
 	)
 }
+
+// RenameAlbum renames an album
+func (a *Api) RenameAlbum(albumMediaKey string, newName string) error {
+	requestBody := pb.RenameAlbum{
+		AlbumMediaKey: albumMediaKey,
+		NewName:       newName,
+		Field3:        1,
+	}
+
+	return a.DoProtoRequest(
+		"https://photosdata-pa.googleapis.com/6439526531001121323/16466587394238175348",
+		&requestBody,
+		nil,
+		WithAuth(),
+		WithCommonHeaders(),
+		WithStatusCheck(),
+	)
+}

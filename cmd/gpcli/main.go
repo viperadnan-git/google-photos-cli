@@ -351,6 +351,23 @@ func main() {
 						Action: albumAddAction,
 					},
 					{
+						Name:      "rename",
+						Aliases:   []string{"mv"},
+						Usage:     "Rename an album",
+						UsageText: "gpcli album rename <album-key> <new-name>",
+						Arguments: []cli.Argument{
+							&cli.StringArg{
+								Name:      "album-key",
+								UsageText: "Album media key",
+							},
+							&cli.StringArg{
+								Name:      "new-name",
+								UsageText: "New album name",
+							},
+						},
+						Action: albumRenameAction,
+					},
+					{
 						Name:      "delete",
 						Aliases:   []string{"rm"},
 						Usage:     "Delete an album",
